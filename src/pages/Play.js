@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
+import { faCircleRight } from '@fortawesome/free-solid-svg-icons';
 import './Play.css';
 
 // Piece strength: higher = stronger
@@ -9,19 +12,21 @@ const PIECE_EMOJI = { E: '🐘', M: '🐪', H: '🐴', D: '🐕', C: '🐈', R: 
 
 // Trap squares in screen coords (row 0 = top)
 const TRAP_COORDS = [[2,2],[2,5],[5,2],[5,5]];
-const TRAP_SET = new Set(TRAP_COORDS.map(([r,c]) => `${r},${c}`));
+const TRAP_SET = new Set(TRAP_COORDS.map(([row,col]) => `${row},${col}`));
 
+// Directions
 const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
 
+// Creates the initial board state
 function createInitialBoard() {
-  const b = Array.from({ length: 8 }, () => Array(8).fill(null));
+  const board = Array.from({ length: 8 }, () => Array(8).fill(null));
   // Silver at top (screen rows 0–1, Arima rows 8–7)
-  ['C','D','H','E','M','H','D','C'].forEach((t, c) => { b[0][c] = { type: t, color: 'silver' }; });
-  for (let c = 0; c < 8; c++) b[1][c] = { type: 'R', color: 'silver' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], color: 'silver' }; });
+  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', color: 'silver' };
   // Gold at bottom (screen rows 6–7, Arima rows 2–1)
-  ['C','D','H','M','E','H','D','C'].forEach((t, c) => { b[6][c] = { type: t, color: 'gold' }; });
-  for (let c = 0; c < 8; c++) b[7][c] = { type: 'R', color: 'gold' };
-  return b;
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], color: 'gold' }; });
+  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', color: 'gold' };
+  return board;
 }
 
 function computeFrozen(board) {
@@ -99,43 +104,60 @@ export default function Play() {
   const [selected, setSelected] = useState(null);  // { row, col }
   const [validMoves, setValidMoves] = useState(new Set());
   const [player, setPlayer] = useState('gold');
-  const [stepsLeft, setStepsLeft] = useState(4);
+  const [currMove, setCurrMove] = useState(0);
   const [winner, setWinner] = useState(null);
 
   const frozen = computeFrozen(board);
-  const stepsUsed = 4 - stepsLeft;
+
+  // Stores the movements of a player's turn
+  const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(piece => piece ? { ...piece } : null))]);
+
+  function cloneBoard(sourceBoard) {
+    return sourceBoard.map(r => r.map(piece => piece ? { ...piece } : null));
+  }
 
   function handleClick(row, col) {
     if (winner) return;
-    const key = `${row},${col}`;
+    const cell = `${row},${col}`;
 
     // Execute a move
-    if (selected && validMoves.has(key)) {
+    if (selected && validMoves.has(cell)) {
+      // Move the piece
       const next = board.map(r => [...r]);
       next[row][col] = next[selected.row][selected.col];
       next[selected.row][selected.col] = null;
       const afterTraps = applyTraps(next);
-      const w = checkWinner(afterTraps);
-      const newSteps = stepsLeft - 1;
+      const afterFrozen = computeFrozen(afterTraps);
+      const newWinner = checkWinner(afterTraps);
+      const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
 
+      // Update board state
       setBoard(afterTraps);
-      setSelected(null);
-      setValidMoves(new Set());
+      setMoveHistory(nextHistory);
 
-      if (w) { setWinner(w); return; }
+      // Check for a winner
+      if (newWinner) { setWinner(newWinner); return; }
 
-      if (newSteps === 0) {
-        setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-        setStepsLeft(4);
+      if (afterTraps[row][col]) {
+        setSelected({ row, col });
+        setValidMoves(getValidMoves(afterTraps, row, col, player, afterFrozen));
       } else {
-        setStepsLeft(newSteps);
+        setSelected(null);
+        setValidMoves(new Set());
+      }
+
+      // Increase move counter
+      setCurrMove(currMove + 1);
+      if (currMove === 3) {
+        setSelected(null);
+        setValidMoves(new Set());
       }
       return;
     }
 
     // Select own piece
     const piece = board[row][col];
-    if (piece?.color === player && !frozen.has(key)) {
+    if (piece?.color === player && !frozen.has(cell)) {
       if (selected?.row === row && selected?.col === col) {
         setSelected(null);
         setValidMoves(new Set());
@@ -151,20 +173,62 @@ export default function Play() {
   }
 
   function endTurn() {
-    if (stepsUsed === 0) return;
-    setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-    setStepsLeft(4);
+    // Break function if no moves have been made
+    if (currMove === 0) return;
+
+    // Switch player
+    switchPlayer();
+
+    // Reset selection and valid moves
     setSelected(null);
     setValidMoves(new Set());
   }
 
   function resetGame() {
-    setBoard(createInitialBoard());
+    const initialBoard = createInitialBoard();
+    setBoard(initialBoard);
     setSelected(null);
     setValidMoves(new Set());
     setPlayer('gold');
-    setStepsLeft(4);
+    setCurrMove(0);
     setWinner(null);
+    setMoveHistory([cloneBoard(initialBoard)]);
+  }
+
+  function undoMove() {
+    // Break function if there are no moves to undo
+    if (currMove === 0) return;
+
+    // Get the previous board state from history
+    const prevBoard = moveHistory[currMove - 1];
+    if (!prevBoard) return;
+
+    // Sets the new board state
+    setBoard(prevBoard);
+    setCurrMove(currMove - 1);
+    setValidMoves(new Set());
+    setSelected(null);
+  }
+
+  function redoMove() {
+    // Break the function if there are no moves to redo
+    if (currMove >= moveHistory.length - 1) return;
+
+    // Get the next board state from history
+    const nextBoard = moveHistory[currMove + 1];
+    if (!nextBoard) return;
+
+    // Sets the new board state
+    setBoard(nextBoard);
+    setCurrMove(currMove + 1);
+    setValidMoves(new Set());
+    setSelected(null);
+  }
+
+  function switchPlayer(currBoard = board) {
+    setPlayer(p => p === 'gold' ? 'silver' : 'gold');
+    setCurrMove(0);
+    setMoveHistory([cloneBoard(currBoard)]);
   }
 
   return (
@@ -174,7 +238,7 @@ export default function Play() {
         <h1 className="play-title">Arima</h1>
         <div className="step-track">
           {[1,2,3,4].map(i => (
-            <div key={i} className={`step-pip ${i <= stepsUsed ? 'pip-used' : ''}`} />
+            <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
           ))}
         </div>
       </div>
@@ -224,7 +288,9 @@ export default function Play() {
                 >
                   {piece ? (
                     <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
-                         title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}>
+                      title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
+                      style={{ cursor: piece.color === player && !isFrozen ? 'pointer' : 'default' }}
+                    >
                       {PIECE_EMOJI[piece.type]}
                     </div>
                   ) : isTarget ? (
@@ -256,7 +322,15 @@ export default function Play() {
       </div>*/}
 
       <div className="controls">
-        <button className="btn-end" onClick={endTurn} disabled={stepsUsed === 0 || !!winner}>
+        <div className="move-controls">
+          <button className="btn-undo" onClick={undoMove} disabled={currMove === 0 || moveHistory.length === 0 || !!winner}>
+            <FontAwesomeIcon icon={faCircleLeft} />
+          </button>
+          <button className="btn-redo" onClick={redoMove} disabled={currMove >= moveHistory.length - 1 || !!winner}>
+            <FontAwesomeIcon icon={faCircleRight} />
+          </button>
+        </div>
+        <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
           End Turn
         </button>
         <button className="btn-reset" onClick={resetGame}>

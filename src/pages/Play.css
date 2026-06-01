@@ -185,8 +185,7 @@
 
 /* ── Pieces ── */
 .piece {
-  width: 52px;
-  height: 52px;
+  width: 52px; height: 52px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -199,7 +198,7 @@
   transition: transform 0.1s;
   cursor: pointer;
 }
-.square:hover .piece { transform: scale(1.08); }
+.square:hover .piece:not(.pc-frozen) { transform: scale(1.08); }
 
 .pc-gold {
   background: radial-gradient(circle at 35% 35%, #FFE566, #C8960C);
@@ -212,6 +211,7 @@
 .pc-frozen {
   filter: grayscale(50%) brightness(0.7);
   box-shadow: 0 0 0 2px #555 inset;
+  cursor: not-allowed !important;
 }
 
 /* ── Controls ── */
@@ -219,6 +219,12 @@
   display: flex;
   gap: 12px;
   margin: 14px 0 8px;
+  align-items: center;
+}
+
+.move-controls {
+  display: flex;
+  gap: 6px;
 }
 
 .btn-end, .btn-reset {
@@ -239,6 +245,36 @@
 }
 .btn-end:hover:not(:disabled) { background: #3a80d2; }
 .btn-end:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+.btn-undo {
+  width: 20px; height: 26px;
+  background: #888;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-family: Georgia, serif;
+  font-weight: bold;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-undo:hover:not(:disabled) { background: #777; }
+.btn-undo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
+
+.btn-redo {
+  width: 20px; height: 26px;
+  background: #888;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-family: Georgia, serif;
+  font-weight: bold;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-redo:hover:not(:disabled) { background: #777; }
+.btn-redo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
 
 .btn-reset {
   background: #D94040;
