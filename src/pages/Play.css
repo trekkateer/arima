@@ -183,6 +183,40 @@
   z-index: 1;
 }
 
+/* Push & Pull indicators */
+.sq-pushable {
+  outline: 3px solid #FF8C00;
+  outline-offset: -3px;
+  cursor: pointer;
+}
+.sq-pushable:hover { opacity: 0.85; }
+
+.sq-push-active {
+  outline: 3px solid #FF4500;
+  outline-offset: -3px;
+}
+
+.sq-push-dest {
+  cursor: pointer;
+}
+.sq-push-dest:hover { opacity: 0.85; }
+
+.push-dest-hint {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(160, 60, 220, 0.65);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sq-pullable {
+  outline: 3px solid #20B2AA;
+  outline-offset: -3px;
+  cursor: pointer;
+}
+.sq-pullable:hover { opacity: 0.85; }
+
 /* ── Pieces ── */
 .piece {
   width: 52px; height: 52px;
