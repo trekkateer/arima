@@ -3,147 +3,13 @@ import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faCircleRight } from '@fortawesome/free-solid-svg-icons';
+import {
+  PIECE_NAMES, PIECE_EMOJI, TRAP_SET,
+  createInitialBoard, computeFrozen, getValidMoves,
+  getPushableEnemies, getPushDests, getPullables,
+  applyTraps, checkWinner, serializePosition, hasAnyMove,
+} from '../game/arima';
 import './Play.css';
-
-// Piece strength: higher = stronger
-const STRENGTH    = { E: 6, M: 5, H: 4, D: 3, C: 2, R: 1 };
-const PIECE_NAMES = { E: 'Elephant', M: 'Camel', H: 'Horse', D: 'Dog', C: 'Cat', R: 'Rabbit' };
-const PIECE_EMOJI = { E: '🐘', M: '🐪', H: '🐴', D: '🐕', C: '🐈', R: '🐇' };
-
-// Trap squares in screen coords (row 0 = top)
-const TRAP_COORDS = [[2,2],[2,5],[5,2],[5,5]];
-const TRAP_SET = new Set(TRAP_COORDS.map(([row,col]) => `${row},${col}`));
-
-// Directions
-const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
-
-// Creates the initial board state
-function createInitialBoard() {
-  const board = Array.from({ length: 8 }, () => Array(8).fill(null));
-  // Silver at top (screen rows 0–1, Arima rows 8–7)
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], color: 'silver' }; });
-  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', color: 'silver' };
-  // Gold at bottom (screen rows 6–7, Arima rows 2–1)
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], color: 'gold' }; });
-  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', color: 'gold' };
-  return board;
-}
-
-function computeFrozen(board) {
-  const frozen = new Set();
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      if (!p) continue;
-      let strongerEnemy = false, hasFriend = false;
-      for (const [dr, dc] of DIRS) {
-        const nr = r + dr, nc = c + dc;
-        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-        const adj = board[nr][nc];
-        if (!adj) continue;
-        if (adj.color === p.color) hasFriend = true;
-        else if (STRENGTH[adj.type] > STRENGTH[p.type]) strongerEnemy = true;
-      }
-      if (strongerEnemy && !hasFriend) frozen.add(`${r},${c}`);
-    }
-  }
-  return frozen;
-}
-
-function getValidMoves(board, row, col, player, frozen) {
-  const p = board[row][col];
-  if (!p || p.color !== player || frozen.has(`${row},${col}`)) return new Set();
-  const moves = new Set();
-  for (const [dr, dc] of DIRS) {
-    const nr = row + dr, nc = col + dc;
-    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-    if (board[nr][nc]) continue;
-    // Rabbits cannot move backward
-    if (p.type === 'R' && player === 'gold' && dr === 1) continue;
-    if (p.type === 'R' && player === 'silver' && dr === -1) continue;
-    moves.add(`${nr},${nc}`);
-  }
-  return moves;
-}
-
-// Returns adjacent weaker enemies that have at least one valid push destination
-function getPushableEnemies(board, row, col, frozen) {
-  if (frozen.has(`${row},${col}`)) return new Set();
-  const p = board[row][col];
-  if (!p) return new Set();
-  const result = new Set();
-  for (const [dr, dc] of DIRS) {
-    const nr = row + dr, nc = col + dc;
-    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-    const adj = board[nr][nc];
-    if (adj && adj.color !== p.color && STRENGTH[p.type] > STRENGTH[adj.type]) {
-      if (getPushDests(board, nr, nc, row, col).size > 0) result.add(`${nr},${nc}`);
-    }
-  }
-  return result;
-}
-
-// Empty squares adjacent to pushee, excluding the pusher's square
-function getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol) {
-  const dests = new Set();
-  for (const [dr, dc] of DIRS) {
-    const nr = pusheeRow + dr, nc = pusheeCol + dc;
-    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-    if (nr === pusherRow && nc === pusherCol) continue;
-    if (!board[nr][nc]) dests.add(`${nr},${nc}`);
-  }
-  return dests;
-}
-
-// Weaker enemies adjacent to the FROM square, excluding the TO square
-function getPullables(board, fromRow, fromCol, toRow, toCol, player) {
-  const mover = board[fromRow][fromCol];
-  if (!mover) return new Set();
-  const result = new Set();
-  for (const [dr, dc] of DIRS) {
-    const nr = fromRow + dr, nc = fromCol + dc;
-    if (nr === toRow && nc === toCol) continue;
-    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
-    const adj = board[nr][nc];
-    if (adj && adj.color !== player && STRENGTH[mover.type] > STRENGTH[adj.type]) {
-      result.add(`${nr},${nc}`);
-    }
-  }
-  return result;
-}
-
-function applyTraps(board) {
-  const next = board.map(r => [...r]);
-  for (const [tr, tc] of TRAP_COORDS) {
-    const p = next[tr][tc];
-    if (!p) continue;
-    const safe = DIRS.some(([dr, dc]) => {
-      const nr = tr + dr, nc = tc + dc;
-      return nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && next[nr][nc]?.color === p.color;
-    });
-    if (!safe) next[tr][tc] = null;
-  }
-  return next;
-}
-
-function checkWinner(board) {
-  // Gold rabbit reaches screen row 0 (Arima row 8)
-  for (let c = 0; c < 8; c++) {
-    if (board[0][c]?.color === 'gold' && board[0][c]?.type === 'R') return 'gold';
-    if (board[7][c]?.color === 'silver' && board[7][c]?.type === 'R') return 'silver';
-  }
-  let gr = 0, sr = 0;
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      if (board[r][c]?.type === 'R') {
-        if (board[r][c].color === 'gold') gr++;
-        else sr++;
-      }
-    }
-  if (gr === 0) return 'silver';
-  if (sr === 0) return 'gold';
-  return null;
-}
 
 export default function Play() {
   const [board, setBoard] = useState(createInitialBoard);
@@ -158,9 +24,41 @@ export default function Play() {
   const frozen = computeFrozen(board);
 
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
+  const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'gold')]);
 
   function cloneBoard(b) {
     return b.map(r => r.map(p => p ? { ...p } : null));
+  }
+
+  // Called whenever a full turn ends. Checks repetition and immobilization, then switches players.
+  function completeTurn(newBoard) {
+    const nextPlayer = player === 'gold' ? 'silver' : 'gold';
+    const posKey = serializePosition(newBoard, nextPlayer);
+    const occurrences = positionLog.filter(k => k === posKey).length;
+
+    setPushPhase(null);
+    setSelected(null);
+    setValidMoves(new Set());
+
+    if (occurrences >= 2) {
+      // Current player caused a 3rd repetition — they lose
+      setWinner(nextPlayer);
+      return;
+    }
+
+    const newLog = [...positionLog, posKey];
+
+    if (!hasAnyMove(newBoard, nextPlayer)) {
+      // Next player is immobilized — they lose
+      setWinner(player);
+      setPositionLog(newLog);
+      return;
+    }
+
+    setPositionLog(newLog);
+    setPlayer(nextPlayer);
+    setCurrMove(0);
+    setMoveHistory([cloneBoard(newBoard)]);
   }
 
   function executePush(pusher, pushee, dest) {
@@ -187,11 +85,7 @@ export default function Play() {
     if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
 
     if (newCurrMove >= 4) {
-      setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-      setCurrMove(0);
-      setMoveHistory([cloneBoard(finBoard)]);
-      setSelected(null);
-      setValidMoves(new Set());
+      completeTurn(finBoard);
     } else {
       const afterFrozen = computeFrozen(finBoard);
       setCurrMove(newCurrMove);
@@ -222,11 +116,7 @@ export default function Play() {
     if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
 
     if (newCurrMove >= 4) {
-      setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-      setCurrMove(0);
-      setMoveHistory([cloneBoard(afterTraps)]);
-      setSelected(null);
-      setValidMoves(new Set());
+      completeTurn(afterTraps);
     } else {
       setCurrMove(newCurrMove);
       setSelected(null);
@@ -280,11 +170,7 @@ export default function Play() {
       if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
 
       if (currMove === 3) {
-        setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-        setCurrMove(0);
-        setMoveHistory([cloneBoard(afterTraps)]);
-        setSelected(null);
-        setValidMoves(new Set());
+        completeTurn(afterTraps);
         return;
       }
 
@@ -343,12 +229,7 @@ export default function Play() {
 
   function endTurn() {
     if (currMove === 0) return;
-    setPushPhase(null);
-    setPlayer(p => p === 'gold' ? 'silver' : 'gold');
-    setCurrMove(0);
-    setMoveHistory([cloneBoard(board)]);
-    setSelected(null);
-    setValidMoves(new Set());
+    completeTurn(board);
   }
 
   function resetGame() {
@@ -360,6 +241,7 @@ export default function Play() {
     setCurrMove(0);
     setWinner(null);
     setMoveHistory([cloneBoard(initialBoard)]);
+    setPositionLog([serializePosition(initialBoard, 'gold')]);
     setPushPhase(null);
   }
 
@@ -530,12 +412,12 @@ export default function Play() {
             ))}
           </div>
           <ul className="rules-list">
-            <li>Each turn you may take <b>1–4 steps</b>; press <b>End Turn</b> when done (auto-ends after 4).</li>
+            <li>Each turn you may take <b>1-4 steps</b>; press <b>End Turn</b> when done (auto-ends after 4).</li>
             <li>Pieces move one square orthogonally per step.</li>
             <li><b>Rabbits</b> cannot step backward (toward their own home row).</li>
             <li><b>Frozen</b> pieces (dimmed) are adjacent to a stronger enemy with no friendly support — they cannot move.</li>
             <li><b>Traps</b> (c3, f3, c6, f6): a piece there with no friendly neighbor is captured.</li>
-            <li><b>Win</b> by advancing a rabbit to the opponent's home row, or capturing all opponent rabbits.</li>
+            <li><b>Win</b> by advancing a rabbit to the opponent's home row, capturing all opponent rabbits, leaving the opponent with no legal moves, or forcing them to repeat a position for the third time.</li>
             <li><b>Push</b> (2 steps): select your piece → click an adjacent weaker enemy (orange) → click where to send it. Your piece slides into its old square.</li>
             <li><b>Pull</b> (2 steps): move your piece — if a weaker enemy was adjacent to your start square, it lights up teal. Click it to drag it along.</li>
           </ul>
