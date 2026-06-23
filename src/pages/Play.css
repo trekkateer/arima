@@ -217,6 +217,19 @@
 }
 .sq-pullable:hover { opacity: 0.85; }
 
+.sq-dragging {
+  opacity: 0.4;
+}
+
+/* Ghost piece that follows the cursor during drag */
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -50%) scale(1.2);
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.6));
+}
+
 /* ── Pieces ── */
 .piece {
   width: 52px; height: 52px;
@@ -231,8 +244,12 @@
   user-select: none;
   transition: transform 0.1s;
   cursor: pointer;
+  touch-action: none;
 }
-.square:hover .piece:not(.pc-frozen) { transform: scale(1.08); }
+/* .square:hover .piece:not(.pc-frozen) { transform: scale(1.08); } */
+.piece:active {
+  cursor: grabbing !important;
+}
 
 .pc-gold {
   background: radial-gradient(circle at 35% 35%, #FFE566, #C8960C);

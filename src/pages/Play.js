@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
@@ -20,8 +20,22 @@ export default function Play() {
   const [winner, setWinner] = useState(null);
   // null | { type:'push_dest', pusher, pushee, dests } | { type:'pull_choice', from, pullables }
   const [pushPhase, setPushPhase] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const [dragPos, setDragPos] = useState(null);
 
   const frozen = computeFrozen(board);
+
+  // Refs so global pointer handlers always see the latest state without stale closures
+  const boardRef = useRef(board);
+  boardRef.current = board;
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
+  const playerRef = useRef(player);
+  playerRef.current = player;
+  const draggingRef = useRef(null);
+  const dragStartPos = useRef(null);
+  const dragDidFire = useRef(false); // suppresses onClick after a completed drag-drop
+  const handleClickRef = useRef(null);
 
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
   const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'gold')]);
@@ -29,6 +43,90 @@ export default function Play() {
   function cloneBoard(b) {
     return b.map(r => r.map(p => p ? { ...p } : null));
   }
+
+  // Records where a drag began; the global pointermove handler starts the drag once
+  // the pointer moves more than 5px (so normal clicks aren't affected).
+  function handlePiecePointerDown(e, row, col) {
+    if (winner || pushPhase) return;
+    const piece = board[row][col];
+    if (!piece || piece.color !== player || frozen.has(`${row},${col}`)) return;
+    dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
+  }
+
+  // Global pointer listeners: handle drag threshold, ghost position, and drop detection.
+  // Set up once; all mutable values come from refs so closures never go stale.
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragStartPos.current) return;
+      if (!draggingRef.current) {
+        // Start drag once pointer moves more than 5px
+        const dx = e.clientX - dragStartPos.current.x;
+        const dy = e.clientY - dragStartPos.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 5) {
+          const { row, col } = dragStartPos.current;
+          draggingRef.current = { row, col };
+          document.body.style.cursor = "grabbing";
+          setDragging({ row, col });
+          setSelected({ row, col });
+          setValidMoves(getValidMoves(boardRef.current, row, col, playerRef.current, frozenRef.current));
+          setDragPos({ x: e.clientX, y: e.clientY });
+        }
+      } else {
+        setDragPos({ x: e.clientX, y: e.clientY });
+      }
+    }
+
+    function onUp(e) {
+      if (!dragStartPos.current) return;
+      const wasDragging = !!draggingRef.current;
+      draggingRef.current = null;
+      dragStartPos.current = null;
+      document.body.style.cursor = '';
+      setDragging(null);
+      setDragPos(null);
+      if (wasDragging) {
+        // Flag set so the onClick on the source square doesn't double-fire
+        dragDidFire.current = true;
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        const sq = elements.find(el => el.dataset?.row !== undefined);
+        if (sq) {
+          handleClickRef.current(parseInt(sq.dataset.row), parseInt(sq.dataset.col));
+        } else {
+          setSelected(null);
+          setValidMoves(new Set());
+        }
+      }
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Allows us to listen to the the entire document and CTRL-Z or CTRL-Y no matter what element is focused
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      // Detect special CTRL-Z code to undo step
+      if (e.ctrlKey) {
+        if (e.key.charCodeAt(0) == 122 &&
+          ((currMove !== 0 || pushPhase) && !winner)
+        ) {
+          undoMove();
+        } else if (e.key.charCodeAt(0) == 121 &&
+          (currMove < moveHistory.length - 1 && !winner && !pushPhase)
+        ) {
+          redoMove();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [undoMove, redoMove]);
 
   // Called whenever a full turn ends. Checks repetition and immobilization, then switches players.
   function completeTurn(newBoard) {
@@ -245,7 +343,7 @@ export default function Play() {
     setPushPhase(null);
   }
 
-  function undoMove() {
+  function undoMove() {//console.log("undoMove called");
     // Set push phase to null
     if (pushPhase?.type === 'push_dest') {
       // No board changes yet — just cancel push mode
@@ -268,7 +366,7 @@ export default function Play() {
     setSelected(null);
   }
 
-  function redoMove() {
+  function redoMove() {//console.log("redoMove called");
     // Set push phase to null
     setPushPhase(null);
 
@@ -285,6 +383,9 @@ export default function Play() {
     setValidMoves(new Set());
     setSelected(null);
   }
+
+  // Always points to the latest handleClick so the global pointer handlers avoid stale closures
+  handleClickRef.current = handleClick;
 
   // Derived for rendering: enemies the selected piece can push (shown when no push phase active)
   const pushableEnemies = (selected && !pushPhase && currMove <= 2)
@@ -339,17 +440,23 @@ export default function Play() {
                       isPushActive ? 'sq-push-active' : '',
                       isPushDest ? 'sq-push-dest' : '',
                       isPullable ? 'sq-pullable' : '',
+                      dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
                       r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
                       c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
                     ].filter(Boolean).join(' ')}
                     key={c}
-                    onClick={() => handleClick(r, c)}
+                    data-row={r}
+                    data-col={c}
+                    onClick={() => {
+                      if (dragDidFire.current) { dragDidFire.current = false; return; }
+                      handleClick(r, c);
+                    }}
                   >
                     {piece ? (
                       <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
                         title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                        style={{ cursor: piece.color === player && !isFrozen ? 'grab' : 'default' }}
-                        draggable={piece.color === player && !isFrozen}
+                        style={{ cursor: piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default' }}
+                        onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
                       >
                         {PIECE_EMOJI[piece.type]}
                       </div>
@@ -423,6 +530,15 @@ export default function Play() {
           </ul>
         </div>
       </details>
+
+      {/* Custom drag ghost: follows the cursor while dragging */}
+      {dragging && dragPos && board[dragging.row][dragging.col] && (
+        <div className="drag-ghost" style={{ left: dragPos.x, top: dragPos.y }}>
+          <div className={`piece pc-${board[dragging.row][dragging.col].color}`}>
+            {PIECE_EMOJI[board[dragging.row][dragging.col].type]}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
