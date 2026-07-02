@@ -35,6 +35,10 @@
   font-size: 1.8rem;
   letter-spacing: 3px;
 }
+.play-title:hover {
+  cursor: pointer;
+  color: #FFB800;
+}
 
 /* ── Step tracker pips ── */
 .step-track {
@@ -78,6 +82,77 @@
   font-style: italic;
 }
 
+/* ── Game container (Game core + move history) ── */
+.game-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* ── Move history panel ── */
+.move-history {
+  width: 350px;
+  /* match board height: 8×64px squares + 2×20px label rows + border */
+  height: 556px;
+  background: #0d0d1a;
+  border: 1px solid #2a2a3e;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.move-history-header {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr;
+  gap: 4px;
+  padding: 6px 8px 5px;
+  border-bottom: 1px solid #2a2a3e;
+  background: #12122a;
+}
+
+.mh-col-label {
+  font-size: 0.72rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.mh-gold   { color: #FFD700; }
+.mh-silver { color: #C0C0C0; }
+
+.move-log {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.move-log::-webkit-scrollbar { width: 4px; }
+.move-log::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.log-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr;
+  gap: 4px;
+  padding: 4px 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.log-num {
+  color: #555;
+  font-size: 0.7rem;
+  user-select: none;
+}
+
+.log-steps { color: #DDD; word-break: break-word; }
+.log-gold   { color: #FFD700; }
+.log-silver { color: #C0C0C0; }
+.log-in-progress { opacity: 0.6; }
+
 /* ── Game core (board + controls, vertically centered) ── */
 .game-core {
   flex: 1;
@@ -85,6 +160,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: fit-content;
 }
 
 /* ── Board container ── */

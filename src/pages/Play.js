@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faCircleRight } from '@fortawesome/free-solid-svg-icons';
@@ -10,6 +9,31 @@ import {
   applyTraps, checkWinner, serializePosition, hasAnyMove,
 } from '../game/arima';
 import './Play.css';
+
+// ── Notation helpers (Arimaa standard) ──────────────────────────────────────
+// file letter + rank number, e.g. board[0][0] → a8
+function toSquare(r, c) { return String.fromCharCode(97 + c) + (8 - r); }
+// direction character between two adjacent squares
+function toDir(fr, fc, tr, tc) {
+  if (tr < fr) return 'n';
+  if (tr > fr) return 's';
+  if (tc > fc) return 'e';
+  return 'w';
+}
+// Gold pieces uppercase, silver lowercase (official Arimaa convention)
+function pieceChar(piece) { return piece.color === 'gold' ? piece.type : piece.type.toLowerCase(); }
+function stepNote(piece, fr, fc, tr, tc) {
+  return pieceChar(piece) + toSquare(fr, fc) + toDir(fr, fc, tr, tc);
+}
+function capNote(piece, r, c) { return pieceChar(piece) + toSquare(r, c) + 'x'; }
+// Returns pieces present in `before` but absent in `after` (trap captures)
+function findCaptures(before, after) {
+  const caps = [];
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      if (before[r][c] && !after[r][c]) caps.push({ piece: before[r][c], r, c });
+  return caps;
+}
 
 export default function Play() {
   const [board, setBoard] = useState(createInitialBoard);
@@ -40,6 +64,21 @@ export default function Play() {
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
   const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'gold')]);
 
+  // Completed turns: each entry is { player, steps: string[] }. Gold always goes first.
+  const [gameLog, setGameLog] = useState([]);
+  // Step notation for the current turn, parallel to moveHistory. Not sliced on undo —
+  // kept for redo, just like moveHistory. Index i holds notation for the move from
+  // moveHistory[i] → moveHistory[i+1], as an array of step strings (1 move + captures).
+  const [turnNotes, setTurnNotes] = useState([]);
+
+  // Ref so the move-log panel can auto-scroll to the latest entry
+  const moveLogRef = useRef(null);
+  useEffect(() => {
+    if (moveLogRef.current)
+      moveLogRef.current.scrollTop = moveLogRef.current.scrollHeight;
+  }, [gameLog, currMove]);
+
+  // Deep clone a board so mutations don't affect the original
   function cloneBoard(b) {
     return b.map(r => r.map(p => p ? { ...p } : null));
   }
@@ -129,7 +168,8 @@ export default function Play() {
   }, [undoMove, redoMove]);
 
   // Called whenever a full turn ends. Checks repetition and immobilization, then switches players.
-  function completeTurn(newBoard) {
+  // stepStrings: flat array of all notation strings for this turn, ready to store.
+  function completeTurn(newBoard, stepStrings) {
     const nextPlayer = player === 'gold' ? 'silver' : 'gold';
     const posKey = serializePosition(newBoard, nextPlayer);
     const occurrences = positionLog.filter(k => k === posKey).length;
@@ -137,6 +177,8 @@ export default function Play() {
     setPushPhase(null);
     setSelected(null);
     setValidMoves(new Set());
+    setGameLog(prev => [...prev, { player, steps: stepStrings }]);
+    setTurnNotes([]);
 
     if (occurrences >= 2) {
       // Current player caused a 3rd repetition — they lose
@@ -159,31 +201,54 @@ export default function Play() {
     setMoveHistory([cloneBoard(newBoard)]);
   }
 
+  // Executes a 2-step push: moves pushee to dest, then slides pusher into pushee's old square
   function executePush(pusher, pushee, dest) {
+    const pusheeInfo = board[pushee.row][pushee.col];
+    const pusherInfo = board[pusher.row][pusher.col];
+
     // Step 1: pushee moves to dest
     const mid = board.map(r => [...r]);
     mid[dest.row][dest.col] = mid[pushee.row][pushee.col];
     mid[pushee.row][pushee.col] = null;
     const midBoard = applyTraps(mid);
+    const caps1 = findCaptures(mid, midBoard);
+    const note1 = [
+      stepNote(pusheeInfo, pushee.row, pushee.col, dest.row, dest.col),
+      ...caps1.map(c => capNote(c.piece, c.r, c.c)),
+    ];
 
     // Step 2: pusher moves to pushee's old square
     const fin = midBoard.map(r => [...r]);
     fin[pushee.row][pushee.col] = fin[pusher.row][pusher.col];
     fin[pusher.row][pusher.col] = null;
     const finBoard = applyTraps(fin);
+    const caps2 = findCaptures(fin, finBoard);
+    const note2 = [
+      stepNote(pusherInfo, pusher.row, pusher.col, pushee.row, pushee.col),
+      ...caps2.map(c => capNote(c.piece, c.r, c.c)),
+    ];
 
+    const newTurnNotes = [...turnNotes.slice(0, currMove), note1, note2];
     const newWinner = checkWinner(finBoard);
     const newCurrMove = currMove + 2;
     const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(midBoard), cloneBoard(finBoard)];
 
     setBoard(finBoard);
     setMoveHistory(nextHistory);
+    setTurnNotes(newTurnNotes);
     setPushPhase(null);
 
-    if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
+    if (newWinner) {
+      setWinner(newWinner);
+      setSelected(null);
+      setValidMoves(new Set());
+      setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
+      setTurnNotes([]);
+      return;
+    }
 
     if (newCurrMove >= 4) {
-      completeTurn(finBoard);
+      completeTurn(finBoard, newTurnNotes.flat());
     } else {
       const afterFrozen = computeFrozen(finBoard);
       setCurrMove(newCurrMove);
@@ -197,24 +262,42 @@ export default function Play() {
     }
   }
 
+  // Executes a pull: drags pullTarget into the square the mover just vacated (from)
   function executePull(from, pullTarget) {
+    const pullPieceInfo = board[pullTarget.row][pullTarget.col];
     // board is already updated (mover already moved); pull the enemy to the vacated square
     const next = board.map(r => [...r]);
     next[from.row][from.col] = next[pullTarget.row][pullTarget.col];
     next[pullTarget.row][pullTarget.col] = null;
     const afterTraps = applyTraps(next);
+    const caps = findCaptures(next, afterTraps);
+    const pullNoteArr = [
+      stepNote(pullPieceInfo, pullTarget.row, pullTarget.col, from.row, from.col),
+      ...caps.map(c => capNote(c.piece, c.r, c.c)),
+    ];
+
+    // currMove is already incremented by the normal move that preceded the pull
+    const newTurnNotes = [...turnNotes.slice(0, currMove), pullNoteArr];
     const newWinner = checkWinner(afterTraps);
     const newCurrMove = currMove + 1;
     const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
 
     setBoard(afterTraps);
     setMoveHistory(nextHistory);
+    setTurnNotes(newTurnNotes);
     setPushPhase(null);
 
-    if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
+    if (newWinner) {
+      setWinner(newWinner);
+      setSelected(null);
+      setValidMoves(new Set());
+      setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
+      setTurnNotes([]);
+      return;
+    }
 
     if (newCurrMove >= 4) {
-      completeTurn(afterTraps);
+      completeTurn(afterTraps, newTurnNotes.flat());
     } else {
       setCurrMove(newCurrMove);
       setSelected(null);
@@ -222,6 +305,8 @@ export default function Play() {
     }
   }
 
+  // Single entry point for all board interactions (click and drag-drop). Dispatches
+  // through push-dest → pull-choice → normal move → select piece → initiate push.
   function handleClick(row, col) {
     if (winner) return;
     const cell = `${row},${col}`;
@@ -251,24 +336,39 @@ export default function Play() {
 
     // Execute a queued normal move
     if (selected && validMoves.has(cell)) {
-      // Move the piece
       const fromRow = selected.row, fromCol = selected.col;
+      const piece = board[fromRow][fromCol];
+
+      // Move the piece
       const next = board.map(r => [...r]);
       next[row][col] = next[fromRow][fromCol];
       next[fromRow][fromCol] = null;
       const afterTraps = applyTraps(next);
       const newWinner = checkWinner(afterTraps);
-      const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
+
+      // Build notation for this step (move + any trap captures)
+      const caps = findCaptures(next, afterTraps);
+      const notes = [stepNote(piece, fromRow, fromCol, row, col), ...caps.map(c => capNote(c.piece, c.r, c.c))];
+      const newTurnNotes = [...turnNotes.slice(0, currMove), notes];
 
       // Update board state
+      const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
       setBoard(afterTraps);
       setMoveHistory(nextHistory);
+      setTurnNotes(newTurnNotes);
 
       // If there is a win, end turn immediately.
-      if (newWinner) { setWinner(newWinner); setSelected(null); setValidMoves(new Set()); return; }
+      if (newWinner) {
+        setWinner(newWinner);
+        setSelected(null);
+        setValidMoves(new Set());
+        setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
+        setTurnNotes([]);
+        return;
+      }
 
       if (currMove === 3) {
-        completeTurn(afterTraps);
+        completeTurn(afterTraps, newTurnNotes.flat());
         return;
       }
 
@@ -325,11 +425,13 @@ export default function Play() {
     setValidMoves(new Set());
   }
 
+  // Manually ends the current turn early; requires at least one step to have been taken
   function endTurn() {
     if (currMove === 0) return;
-    completeTurn(board);
+    completeTurn(board, turnNotes.slice(0, currMove).flat());
   }
 
+  // Resets all game state back to the initial board position
   function resetGame() {
     const initialBoard = createInitialBoard();
     setBoard(initialBoard);
@@ -341,6 +443,8 @@ export default function Play() {
     setMoveHistory([cloneBoard(initialBoard)]);
     setPositionLog([serializePosition(initialBoard, 'gold')]);
     setPushPhase(null);
+    setGameLog([]);
+    setTurnNotes([]);
   }
 
   function undoMove() {//console.log("undoMove called");
@@ -359,7 +463,7 @@ export default function Play() {
     const prevBoard = moveHistory[currMove - 1];
     if (!prevBoard) return;
 
-    // Sets the new board state
+    // Sets the new board state (turnNotes is kept intact for redo, like moveHistory)
     setBoard(prevBoard);
     setCurrMove(currMove - 1);
     setValidMoves(new Set());
@@ -392,11 +496,25 @@ export default function Play() {
     ? getPushableEnemies(board, selected.row, selected.col, frozen)
     : new Set();
 
+  // Build move-log rows: completed turns paired as (gold, silver), with current in-progress turn appended
+  const logEntries = [...gameLog];
+  const inProgressSteps = turnNotes.slice(0, currMove).flat();
+  if (inProgressSteps.length > 0 && !winner) {
+    logEntries.push({ player, steps: inProgressSteps, inProgress: true });
+  }
+  const logRows = [];
+  for (let i = 0; i < logEntries.length; i += 2) {
+    logRows.push({ turnNum: Math.floor(i / 2) + 1, gold: logEntries[i], silver: logEntries[i + 1] });
+  }
+
   return (
     <div className="play-page">
       <div className="play-header">
-        <Link to="/" className="back-link">← Home</Link>
-        <h1 className="play-title">Arima</h1>
+        <h1 className="play-title"
+          onClick={() => window.location.href = '/'}
+        >
+          Arima
+        </h1>
         <div className="step-track">
           {[1,2,3,4].map(i => (
             <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
@@ -404,106 +522,136 @@ export default function Play() {
         </div>
       </div>
 
-      <div className="game-core">
-        {/* Board */}
-        <div className="board-container">
-          {/* Column labels */}
-          <div className="labels-row">
-            <div className="corner" />
-            {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-            <div className="corner" />
-          </div>
-
-          {board.map((row, r) => (
-            <div key={r} className="board-row">
-              <div className="row-lbl">{8 - r}</div>
-              {row.map((piece, c) => {
-                const key = `${r},${c}`;
-                const isSelected = selected?.row === r && selected?.col === c;
-                const isTarget = validMoves.has(key);
-                const isTrap = TRAP_SET.has(key);
-                const isFrozen = piece && frozen.has(key);
-
-                const isPushable = pushableEnemies.has(key);
-                const isPushActive = pushPhase?.type === 'push_dest' &&
-                  pushPhase.pushee.row === r && pushPhase.pushee.col === c;
-                const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
-                const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
-
-                return (
-                  <div className={[
-                      'square',
-                      isTrap ? 'sq-trap' : '',
-                      isSelected ? 'sq-selected' : '',
-                      isTarget ? 'sq-target' : '',
-                      isPushable ? 'sq-pushable' : '',
-                      isPushActive ? 'sq-push-active' : '',
-                      isPushDest ? 'sq-push-dest' : '',
-                      isPullable ? 'sq-pullable' : '',
-                      dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
-                      r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
-                      c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
-                    ].filter(Boolean).join(' ')}
-                    key={c}
-                    data-row={r}
-                    data-col={c}
-                    onClick={() => {
-                      if (dragDidFire.current) { dragDidFire.current = false; return; }
-                      handleClick(r, c);
-                    }}
-                  >
-                    {piece ? (
-                      <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
-                        title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                        style={{ cursor: piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default' }}
-                        onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
-                      >
-                        {PIECE_EMOJI[piece.type]}
-                      </div>
-                    ) : isTarget ? (
-                      <div className="move-hint" />
-                    ) : isPushDest ? (
-                      <div className="push-dest-hint" />
-                    ) : null}
-                  </div>
-                );
-              })}
-              <div className="row-lbl">{8 - r}</div>
+      <div className="game-container">
+        <div className="game-core">
+          {/* Board */}
+          <div className="board-container">
+            {/* Column labels */}
+            <div className="labels-row">
+              <div className="corner" />
+              {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+              <div className="corner" />
             </div>
-          ))}
 
-          <div className="labels-row">
-            <div className="corner" />
-            {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-            <div className="corner" />
+            {board.map((row, r) => (
+              <div key={r} className="board-row">
+                <div className="row-lbl">{8 - r}</div>
+                {row.map((piece, c) => {
+                  const key = `${r},${c}`;
+                  const isSelected = selected?.row === r && selected?.col === c;
+                  const isTarget = validMoves.has(key);
+                  const isTrap = TRAP_SET.has(key);
+                  const isFrozen = piece && frozen.has(key);
+
+                  const isPushable = pushableEnemies.has(key);
+                  const isPushActive = pushPhase?.type === 'push_dest' &&
+                    pushPhase.pushee.row === r && pushPhase.pushee.col === c;
+                  const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
+                  const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
+
+                  return (
+                    <div className={[
+                        'square',
+                        isTrap ? 'sq-trap' : '',
+                        isSelected ? 'sq-selected' : '',
+                        isTarget ? 'sq-target' : '',
+                        isPushable ? 'sq-pushable' : '',
+                        isPushActive ? 'sq-push-active' : '',
+                        isPushDest ? 'sq-push-dest' : '',
+                        isPullable ? 'sq-pullable' : '',
+                        dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
+                        r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
+                        c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
+                      ].filter(Boolean).join(' ')}
+                      key={c}
+                      data-row={r}
+                      data-col={c}
+                      onClick={() => {
+                        if (dragDidFire.current) { dragDidFire.current = false; return; }
+                        handleClick(r, c);
+                      }}
+                    >
+                      {piece ? (
+                        <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
+                          title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
+                          style={{ cursor: piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default' }}
+                          onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
+                        >
+                          {PIECE_EMOJI[piece.type]}
+                        </div>
+                      ) : isTarget ? (
+                        <div className="move-hint" />
+                      ) : isPushDest ? (
+                        <div className="push-dest-hint" />
+                      ) : null}
+                    </div>
+                  );
+                })}
+                <div className="row-lbl">{8 - r}</div>
+              </div>
+            ))}
+
+            <div className="labels-row">
+              <div className="corner" />
+              {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+              <div className="corner" />
+            </div>
           </div>
+
+          <div className="controls">
+            <div className="move-controls">
+              <button className="btn-undo" onClick={undoMove}
+                disabled={(currMove === 0 && !pushPhase) || !!winner}>
+                <FontAwesomeIcon icon={faCircleLeft} />
+              </button>
+              <button className="btn-redo" onClick={redoMove}
+                disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}>
+                <FontAwesomeIcon icon={faCircleRight} />
+              </button>
+            </div>
+            <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
+              End Turn
+            </button>
+            <button className="btn-reset" onClick={resetGame}>
+              New Game
+            </button>
+          </div>
+
+          {winner && (
+            <div className="winner-banner">
+              <span>{winner === 'gold' ? 'Gold' : 'Silver'} wins!</span>
+              <button onClick={resetGame}>Play Again</button>
+            </div>
+          )}
         </div>
 
-        <div className="controls">
-          <div className="move-controls">
-            <button className="btn-undo" onClick={undoMove}
-              disabled={(currMove === 0 && !pushPhase) || !!winner}>
-              <FontAwesomeIcon icon={faCircleLeft} />
-            </button>
-            <button className="btn-redo" onClick={redoMove}
-              disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}>
-              <FontAwesomeIcon icon={faCircleRight} />
-            </button>
+        {/* Move history panel (chess.com-style: turn# | gold column | silver column) */}
+        <div className="move-history">
+          <div className="move-history-header">
+            <span className="mh-col-num" />
+            <span className="mh-col-label mh-gold">Gold</span>
+            <span className="mh-col-label mh-silver">Silver</span>
           </div>
-          <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
-            End Turn
-          </button>
-          <button className="btn-reset" onClick={resetGame}>
-            New Game
-          </button>
+          <div className="move-log" ref={moveLogRef}>
+            {logRows.map(({ turnNum, gold, silver }) => (
+              <div key={turnNum} className="log-row">
+                <span className="log-num">{turnNum}.</span>
+                <span className={`log-steps log-gold${gold?.inProgress ? ' log-in-progress' : ''}`}>
+                  {gold?.steps?.join(' ')}
+                  {/*{gold?.steps?.map((step, i) => (
+                    <span key={i}>{step}</span>
+                  ))}*/}
+                </span>
+                <span className={`log-steps log-silver${silver?.inProgress ? ' log-in-progress' : ''}`}>
+                  {silver?.steps?.join(' ')}
+                  {/*{silver?.steps?.map((step, i) => (
+                    <span key={i}>{step}</span>
+                  ))}*/}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-
-        {winner && (
-          <div className="winner-banner">
-            <span>{winner === 'gold' ? 'Gold' : 'Silver'} wins!</span>
-            <button onClick={resetGame}>Play Again</button>
-          </div>
-        )}
       </div>
 
       <details className="rules">
