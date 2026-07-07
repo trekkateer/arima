@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faCircleRight } from '@fortawesome/free-solid-svg-icons';
+import { toast } from '../components/Toast.js';
 import {
   PIECE_NAMES, PIECE_EMOJI, TRAP_SET,
   createInitialBoard, computeFrozen, getValidMoves,
@@ -579,218 +580,226 @@ export default function Play() {
   }
 
   return (
-    <div className="play-page">
-      <div className="play-header">
-        <h1 className="play-title"
-          onClick={() => window.location.href = '/'}
-        >
-          Arima
-        </h1>
-        {setupPhase ? (
-          <div className="setup-status">Setup: {setupPhase === 'gold' ? 'Gold' : 'Silver'}</div>
-        ) : (
-          <div className="step-track">
-            {[1,2,3,4].map(i => (
-              <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
-            ))}
+    <>
+      <title>Play Arima</title>
+      <div className="play-page">
+        <div className="play-header">
+          <h1 className="play-title"
+            onClick={() => window.location.href = '/'}
+          >
+            Arima
+          </h1>
+          {setupPhase ? (
+            <div className="setup-status">Setup: {setupPhase === 'gold' ? 'Gold' : 'Silver'}</div>
+          ) : (
+            <div className="step-track">
+              {[1,2,3,4].map(i => (
+                <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="game-container">
+          <div className="game-core">
+            {/* Board */}
+            <div className="board-container">
+              {/* Column labels */}
+              <div className="labels-row">
+                <div className="corner" />
+                {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+                <div className="corner" />
+              </div>
+
+              {board.map((row, r) => (
+                <div key={r} className="board-row">
+                  <div className="row-lbl">{8 - r}</div>
+                  {row.map((piece, c) => {
+                    const key = `${r},${c}`;
+                    const isSelected = selected?.row === r && selected?.col === c;
+                    const isTarget = validMoves.has(key);
+                    const isTrap = TRAP_SET.has(key);
+                    const isFrozen = piece && frozen.has(key);
+
+                    const isPushable = pushableEnemies.has(key);
+                    const isPushActive = pushPhase?.type === 'push_dest' &&
+                      pushPhase.pushee.row === r && pushPhase.pushee.col === c;
+                    const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
+                    const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
+                    const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
+                    const isSetupLocked = setupPhase && piece && piece.color !== setupPhase;
+
+                    return (
+                      <div className={[
+                          'square',
+                          isTrap ? 'sq-trap' : '',
+                          isSelected ? 'sq-selected' : '',
+                          isTarget ? 'sq-target' : '',
+                          isPushable ? 'sq-pushable' : '',
+                          isPushActive ? 'sq-push-active' : '',
+                          isPushDest ? 'sq-push-dest' : '',
+                          isPullable ? 'sq-pullable' : '',
+                          isSetupSel ? 'sq-setup-selected' : '',
+                          isSetupLocked ? 'sq-setup-locked' : '',
+                          dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
+                          r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
+                          c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
+                        ].filter(Boolean).join(' ')}
+                        key={c}
+                        data-row={r}
+                        data-col={c}
+                        onClick={() => {
+                          if (dragDidFire.current) { dragDidFire.current = false; return; }
+                          handleClick(r, c);
+                        }}
+                      >
+                        {piece ? (
+                          <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
+                            title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
+                            style={{ cursor: setupPhase
+                              ? (piece.color === setupPhase ? 'grab' : 'default')
+                              : (piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default') }}
+                            onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
+                          >
+                            {PIECE_EMOJI[piece.type]}
+                          </div>
+                        ) : isTarget ? (
+                          <div className="move-hint" />
+                        ) : isPushDest ? (
+                          <div className="push-dest-hint" />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  <div className="row-lbl">{8 - r}</div>
+                </div>
+              ))}
+
+              <div className="labels-row">
+                <div className="corner" />
+                {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+                <div className="corner" />
+              </div>
+            </div>
+
+            {setupPhase ? (
+              <div className="controls">
+                <button className="btn-end" onClick={randomizeSetup}>
+                  Randomize
+                </button>
+                <button className="btn-end"
+                  onClick={() => {
+                    confirmSetup();
+                    toast("Setup Confirmed!", { type: "info", duration: 3000 });
+                  }}
+                >
+                  Confirm Setup
+                </button>
+                <button className="btn-reset" onClick={resetGame}>
+                  New Game
+                </button>
+              </div>
+            ) : (
+              <div className="controls">
+                <div className="move-controls">
+                  <button className="btn-undo" onClick={undoMove}
+                    disabled={(currMove === 0 && !pushPhase) || !!winner}
+                  >
+                    <FontAwesomeIcon icon={faCircleLeft} />
+                  </button>
+                  <button className="btn-redo" onClick={redoMove}
+                    disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}
+                  >
+                    <FontAwesomeIcon icon={faCircleRight} />
+                  </button>
+                </div>
+                <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
+                  End Turn
+                </button>
+                <button className="btn-reset" onClick={resetGame}>
+                  New Game
+                </button>
+              </div>
+            )}
+
+            {setupPhase && (
+              <div className="setup-banner">
+                <span>{setupPhase === 'gold' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
+              </div>
+            )}
+
+            {winner && (
+              <div className="winner-banner">
+                <span>{winner === 'gold' ? 'Gold' : 'Silver'} wins!</span>
+                <button onClick={resetGame}>Play Again</button>
+              </div>
+            )}
+          </div>
+
+          {/* Move history panel (chess.com-style: turn# | gold column | silver column) */}
+          <div className="move-history">
+            <div className="move-history-header">
+              <span className="mh-col-num" />
+              <span className="mh-col-label mh-gold">Gold</span>
+              <span className="mh-col-label mh-silver">Silver</span>
+            </div>
+            <div className="move-log" ref={moveLogRef}>
+              {logRows.map(({ turnNum, gold, silver }) => (
+                <div key={turnNum} className="log-row">
+                  <span className="log-num">{turnNum}.</span>
+                  <span className={`log-steps log-gold${gold?.inProgress ? ' log-in-progress' : ''}`}>
+                    {gold?.steps?.join(' ')}
+                    {/*{gold?.steps?.map((step, i) => (
+                      <span key={i}>{step}</span>
+                    ))}*/}
+                  </span>
+                  <span className={`log-steps log-silver${silver?.inProgress ? ' log-in-progress' : ''}`}>
+                    {silver?.steps?.join(' ')}
+                    {/*{silver?.steps?.map((step, i) => (
+                      <span key={i}>{step}</span>
+                    ))}*/}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <details className="rules">
+          <summary>Pieces &amp; Rules</summary>
+          <div className="rules-body">
+            <div className="piece-legend">
+              {Object.entries(PIECE_NAMES).map(([type, name]) => (
+                <div key={type} className="legend-row">
+                  <span className="legend-emoji">{PIECE_EMOJI[type]}</span>
+                  <span className="legend-letter">{type}</span>
+                  <span>{name}</span>
+                </div>
+              ))}
+            </div>
+            <ul className="rules-list">
+              <li><b>Setup:</b> Gold, then Silver, arranges their 16 pieces anywhere within their own two home rows before turn 1.</li>
+              <li>Each turn you may take <b>1-4 steps</b>; press <b>End Turn</b> when done (auto-ends after 4).</li>
+              <li>Pieces move one square orthogonally per step.</li>
+              <li><b>Rabbits</b> cannot step backward (toward their own home row).</li>
+              <li><b>Frozen</b> pieces (dimmed) are adjacent to a stronger enemy with no friendly support — they cannot move.</li>
+              <li><b>Traps</b> (c3, f3, c6, f6): a piece there with no friendly neighbor is captured.</li>
+              <li><b>Win</b> by advancing a rabbit to the opponent's home row, capturing all opponent rabbits, leaving the opponent with no legal moves, or forcing them to repeat a position for the third time.</li>
+              <li><b>Push</b> (2 steps): select your piece → click an adjacent weaker enemy (orange) → click where to send it. Your piece slides into its old square.</li>
+              <li><b>Pull</b> (2 steps): move your piece — if a weaker enemy was adjacent to your start square, it lights up teal. Click it to drag it along.</li>
+            </ul>
+          </div>
+        </details>
+
+        {/* Custom drag ghost: follows the cursor while dragging */}
+        {dragging && dragPos && board[dragging.row][dragging.col] && (
+          <div className="drag-ghost" style={{ left: dragPos.x, top: dragPos.y }}>
+            <div className={`piece pc-${board[dragging.row][dragging.col].color}`}>
+              {PIECE_EMOJI[board[dragging.row][dragging.col].type]}
+            </div>
           </div>
         )}
       </div>
-
-      <div className="game-container">
-        <div className="game-core">
-          {/* Board */}
-          <div className="board-container">
-            {/* Column labels */}
-            <div className="labels-row">
-              <div className="corner" />
-              {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-              <div className="corner" />
-            </div>
-
-            {board.map((row, r) => (
-              <div key={r} className="board-row">
-                <div className="row-lbl">{8 - r}</div>
-                {row.map((piece, c) => {
-                  const key = `${r},${c}`;
-                  const isSelected = selected?.row === r && selected?.col === c;
-                  const isTarget = validMoves.has(key);
-                  const isTrap = TRAP_SET.has(key);
-                  const isFrozen = piece && frozen.has(key);
-
-                  const isPushable = pushableEnemies.has(key);
-                  const isPushActive = pushPhase?.type === 'push_dest' &&
-                    pushPhase.pushee.row === r && pushPhase.pushee.col === c;
-                  const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
-                  const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
-                  const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
-                  const isSetupLocked = setupPhase && piece && piece.color !== setupPhase;
-
-                  return (
-                    <div className={[
-                        'square',
-                        isTrap ? 'sq-trap' : '',
-                        isSelected ? 'sq-selected' : '',
-                        isTarget ? 'sq-target' : '',
-                        isPushable ? 'sq-pushable' : '',
-                        isPushActive ? 'sq-push-active' : '',
-                        isPushDest ? 'sq-push-dest' : '',
-                        isPullable ? 'sq-pullable' : '',
-                        isSetupSel ? 'sq-setup-selected' : '',
-                        isSetupLocked ? 'sq-setup-locked' : '',
-                        dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
-                        r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
-                        c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
-                      ].filter(Boolean).join(' ')}
-                      key={c}
-                      data-row={r}
-                      data-col={c}
-                      onClick={() => {
-                        if (dragDidFire.current) { dragDidFire.current = false; return; }
-                        handleClick(r, c);
-                      }}
-                    >
-                      {piece ? (
-                        <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
-                          title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                          style={{ cursor: setupPhase
-                            ? (piece.color === setupPhase ? 'grab' : 'default')
-                            : (piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default') }}
-                          onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
-                        >
-                          {PIECE_EMOJI[piece.type]}
-                        </div>
-                      ) : isTarget ? (
-                        <div className="move-hint" />
-                      ) : isPushDest ? (
-                        <div className="push-dest-hint" />
-                      ) : null}
-                    </div>
-                  );
-                })}
-                <div className="row-lbl">{8 - r}</div>
-              </div>
-            ))}
-
-            <div className="labels-row">
-              <div className="corner" />
-              {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-              <div className="corner" />
-            </div>
-          </div>
-
-          {setupPhase ? (
-            <div className="controls">
-              <button className="btn-end" onClick={randomizeSetup}>
-                Randomize
-              </button>
-              <button className="btn-end" onClick={confirmSetup}>
-                Confirm Setup
-              </button>
-              <button className="btn-reset" onClick={resetGame}>
-                New Game
-              </button>
-            </div>
-          ) : (
-            <div className="controls">
-              <div className="move-controls">
-                <button className="btn-undo" onClick={undoMove}
-                  disabled={(currMove === 0 && !pushPhase) || !!winner}
-                >
-                  <FontAwesomeIcon icon={faCircleLeft} />
-                </button>
-                <button className="btn-redo" onClick={redoMove}
-                  disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}
-                >
-                  <FontAwesomeIcon icon={faCircleRight} />
-                </button>
-              </div>
-              <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
-                End Turn
-              </button>
-              <button className="btn-reset" onClick={resetGame}>
-                New Game
-              </button>
-            </div>
-          )}
-
-          {setupPhase && (
-            <div className="setup-banner">
-              <span>{setupPhase === 'gold' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
-            </div>
-          )}
-
-          {winner && (
-            <div className="winner-banner">
-              <span>{winner === 'gold' ? 'Gold' : 'Silver'} wins!</span>
-              <button onClick={resetGame}>Play Again</button>
-            </div>
-          )}
-        </div>
-
-        {/* Move history panel (chess.com-style: turn# | gold column | silver column) */}
-        <div className="move-history">
-          <div className="move-history-header">
-            <span className="mh-col-num" />
-            <span className="mh-col-label mh-gold">Gold</span>
-            <span className="mh-col-label mh-silver">Silver</span>
-          </div>
-          <div className="move-log" ref={moveLogRef}>
-            {logRows.map(({ turnNum, gold, silver }) => (
-              <div key={turnNum} className="log-row">
-                <span className="log-num">{turnNum}.</span>
-                <span className={`log-steps log-gold${gold?.inProgress ? ' log-in-progress' : ''}`}>
-                  {gold?.steps?.join(' ')}
-                  {/*{gold?.steps?.map((step, i) => (
-                    <span key={i}>{step}</span>
-                  ))}*/}
-                </span>
-                <span className={`log-steps log-silver${silver?.inProgress ? ' log-in-progress' : ''}`}>
-                  {silver?.steps?.join(' ')}
-                  {/*{silver?.steps?.map((step, i) => (
-                    <span key={i}>{step}</span>
-                  ))}*/}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <details className="rules">
-        <summary>Pieces &amp; Rules</summary>
-        <div className="rules-body">
-          <div className="piece-legend">
-            {Object.entries(PIECE_NAMES).map(([type, name]) => (
-              <div key={type} className="legend-row">
-                <span className="legend-emoji">{PIECE_EMOJI[type]}</span>
-                <span className="legend-letter">{type}</span>
-                <span>{name}</span>
-              </div>
-            ))}
-          </div>
-          <ul className="rules-list">
-            <li><b>Setup:</b> Gold, then Silver, arranges their 16 pieces anywhere within their own two home rows before turn 1.</li>
-            <li>Each turn you may take <b>1-4 steps</b>; press <b>End Turn</b> when done (auto-ends after 4).</li>
-            <li>Pieces move one square orthogonally per step.</li>
-            <li><b>Rabbits</b> cannot step backward (toward their own home row).</li>
-            <li><b>Frozen</b> pieces (dimmed) are adjacent to a stronger enemy with no friendly support — they cannot move.</li>
-            <li><b>Traps</b> (c3, f3, c6, f6): a piece there with no friendly neighbor is captured.</li>
-            <li><b>Win</b> by advancing a rabbit to the opponent's home row, capturing all opponent rabbits, leaving the opponent with no legal moves, or forcing them to repeat a position for the third time.</li>
-            <li><b>Push</b> (2 steps): select your piece → click an adjacent weaker enemy (orange) → click where to send it. Your piece slides into its old square.</li>
-            <li><b>Pull</b> (2 steps): move your piece — if a weaker enemy was adjacent to your start square, it lights up teal. Click it to drag it along.</li>
-          </ul>
-        </div>
-      </details>
-
-      {/* Custom drag ghost: follows the cursor while dragging */}
-      {dragging && dragPos && board[dragging.row][dragging.col] && (
-        <div className="drag-ghost" style={{ left: dragPos.x, top: dragPos.y }}>
-          <div className={`piece pc-${board[dragging.row][dragging.col].color}`}>
-            {PIECE_EMOJI[board[dragging.row][dragging.col].type]}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
