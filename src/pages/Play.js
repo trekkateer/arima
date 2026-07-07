@@ -6,7 +6,7 @@ import {
   PIECE_NAMES, PIECE_EMOJI, TRAP_SET,
   createInitialBoard, computeFrozen, getValidMoves,
   getPushableEnemies, getPushDests, getPullables,
-  applyTraps, checkWinner, serializePosition, hasAnyMove,
+  applyTraps, checkWinner, serializePosition, hasAnyMove
 } from '../game/arima';
 import './Play.css';
 
@@ -601,11 +601,13 @@ export default function Play() {
           <div className="controls">
             <div className="move-controls">
               <button className="btn-undo" onClick={undoMove}
-                disabled={(currMove === 0 && !pushPhase) || !!winner}>
+                disabled={(currMove === 0 && !pushPhase) || !!winner}
+              >
                 <FontAwesomeIcon icon={faCircleLeft} />
               </button>
               <button className="btn-redo" onClick={redoMove}
-                disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}>
+                disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}
+              >
                 <FontAwesomeIcon icon={faCircleRight} />
               </button>
             </div>
