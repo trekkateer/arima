@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleLeft } from '@fortawesome/free-solid-svg-icons';
-import { faCircleRight } from '@fortawesome/free-solid-svg-icons';
+import { faCircleLeft, faCircleRight } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '../components/Toast.js';
 import {
   PIECE_NAMES, PIECE_EMOJI, TRAP_SET,
@@ -218,6 +217,35 @@ export default function Play() {
     setMoveHistory([cloneBoard(newBoard)]);
   }
 
+  // Shared tail end of every step (single move, push, or pull): records notation,
+  // checks for a win, then either completes the turn or hands off to `onContinue`
+  // for step-specific follow-up (re-selecting a piece, offering a pull, etc).
+  function finalizeStep(newBoard, newTurnNotes, newCurrMove, nextHistory, onContinue) {
+    const flatNotes = newTurnNotes.flat();
+    const newWinner = checkWinner(newBoard);
+
+    setBoard(newBoard);
+    setMoveHistory(nextHistory);
+    setTurnNotes(newTurnNotes);
+    setPushPhase(null);
+
+    if (newWinner) {
+      setWinner(newWinner);
+      setSelected(null);
+      setValidMoves(new Set());
+      setGameLog(prev => [...prev, { player, steps: flatNotes }]);
+      setTurnNotes([]);
+      return;
+    }
+
+    if (newCurrMove >= 4) {
+      completeTurn(newBoard, flatNotes);
+    } else {
+      setCurrMove(newCurrMove);
+      onContinue();
+    }
+  }
+
   // Executes a 2-step push: moves pushee to dest, then slides pusher into pushee's old square
   function executePush(pusher, pushee, dest) {
     const pusheeInfo = board[pushee.row][pushee.col];
@@ -246,37 +274,18 @@ export default function Play() {
     ];
 
     const newTurnNotes = [...turnNotes.slice(0, currMove), note1, note2];
-    const newWinner = checkWinner(finBoard);
-    const newCurrMove = currMove + 2;
     const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(midBoard), cloneBoard(finBoard)];
 
-    setBoard(finBoard);
-    setMoveHistory(nextHistory);
-    setTurnNotes(newTurnNotes);
-    setPushPhase(null);
-
-    if (newWinner) {
-      setWinner(newWinner);
-      setSelected(null);
-      setValidMoves(new Set());
-      setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
-      setTurnNotes([]);
-      return;
-    }
-
-    if (newCurrMove >= 4) {
-      completeTurn(finBoard, newTurnNotes.flat());
-    } else {
-      const afterFrozen = computeFrozen(finBoard);
-      setCurrMove(newCurrMove);
+    finalizeStep(finBoard, newTurnNotes, currMove + 2, nextHistory, () => {
       if (finBoard[pushee.row][pushee.col]) {
+        const afterFrozen = computeFrozen(finBoard);
         setSelected({ row: pushee.row, col: pushee.col });
         setValidMoves(getValidMoves(finBoard, pushee.row, pushee.col, player, afterFrozen));
       } else {
         setSelected(null);
         setValidMoves(new Set());
       }
-    }
+    });
   }
 
   // Executes a pull: drags pullTarget into the square the mover just vacated (from)
@@ -295,31 +304,12 @@ export default function Play() {
 
     // currMove is already incremented by the normal move that preceded the pull
     const newTurnNotes = [...turnNotes.slice(0, currMove), pullNoteArr];
-    const newWinner = checkWinner(afterTraps);
-    const newCurrMove = currMove + 1;
     const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
 
-    setBoard(afterTraps);
-    setMoveHistory(nextHistory);
-    setTurnNotes(newTurnNotes);
-    setPushPhase(null);
-
-    if (newWinner) {
-      setWinner(newWinner);
+    finalizeStep(afterTraps, newTurnNotes, currMove + 1, nextHistory, () => {
       setSelected(null);
       setValidMoves(new Set());
-      setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
-      setTurnNotes([]);
-      return;
-    }
-
-    if (newCurrMove >= 4) {
-      completeTurn(afterTraps, newTurnNotes.flat());
-    } else {
-      setCurrMove(newCurrMove);
-      setSelected(null);
-      setValidMoves(new Set());
-    }
+    });
   }
 
   // Swaps two pieces within the active setup player's own home rows (click or drag-drop)
@@ -414,56 +404,32 @@ export default function Play() {
       next[row][col] = next[fromRow][fromCol];
       next[fromRow][fromCol] = null;
       const afterTraps = applyTraps(next);
-      const newWinner = checkWinner(afterTraps);
 
       // Build notation for this step (move + any trap captures)
       const caps = findCaptures(next, afterTraps);
       const notes = [stepNote(piece, fromRow, fromCol, row, col), ...caps.map(c => capNote(c.piece, c.r, c.c))];
       const newTurnNotes = [...turnNotes.slice(0, currMove), notes];
-
-      // Update board state
       const nextHistory = [...moveHistory.slice(0, currMove + 1), cloneBoard(afterTraps)];
-      setBoard(afterTraps);
-      setMoveHistory(nextHistory);
-      setTurnNotes(newTurnNotes);
 
-      // If there is a win, end turn immediately.
-      if (newWinner) {
-        setWinner(newWinner);
-        setSelected(null);
-        setValidMoves(new Set());
-        setGameLog(prev => [...prev, { player, steps: newTurnNotes.flat() }]);
-        setTurnNotes([]);
-        return;
-      }
+      finalizeStep(afterTraps, newTurnNotes, currMove + 1, nextHistory, () => {
+        // Offer pull if mover survived and a weaker enemy was adjacent to origin
+        const pullables = afterTraps[row][col]
+          ? getPullables(board, fromRow, fromCol, row, col, player)
+          : new Set();
 
-      if (currMove === 3) {
-        completeTurn(afterTraps, newTurnNotes.flat());
-        return;
-      }
-
-      const newCurrMove = currMove + 1;
-      // Offer pull if mover survived and a weaker enemy was adjacent to origin
-      const pullables = afterTraps[row][col]
-        ? getPullables(board, fromRow, fromCol, row, col, player)
-        : new Set();
-
-      if (pullables.size > 0) {
-        setPushPhase({ type: 'pull_choice', from: { row: fromRow, col: fromCol }, pullables });
-        setCurrMove(newCurrMove);
-        setSelected(null);
-        setValidMoves(new Set());
-      } else {
-        setCurrMove(newCurrMove);
-        const afterFrozen = computeFrozen(afterTraps);
-        if (afterTraps[row][col]) {
+        if (pullables.size > 0) {
+          setPushPhase({ type: 'pull_choice', from: { row: fromRow, col: fromCol }, pullables });
+          setSelected(null);
+          setValidMoves(new Set());
+        } else if (afterTraps[row][col]) {
+          const afterFrozen = computeFrozen(afterTraps);
           setSelected({ row, col });
           setValidMoves(getValidMoves(afterTraps, row, col, player, afterFrozen));
         } else {
           setSelected(null);
           setValidMoves(new Set());
         }
-      }
+      });
       return;
     }
 
@@ -519,7 +485,7 @@ export default function Play() {
     setSetupSelected(null);
   }
 
-  function undoMove() {//console.log("undoMove called");
+  function undoMove() {
     // Set push phase to null
     if (pushPhase?.type === 'push_dest') {
       // No board changes yet — just cancel push mode
@@ -542,7 +508,7 @@ export default function Play() {
     setSelected(null);
   }
 
-  function redoMove() {//console.log("redoMove called");
+  function redoMove() {
     // Set push phase to null
     setPushPhase(null);
 
@@ -579,6 +545,15 @@ export default function Play() {
     logRows.push({ turnNum: Math.floor(i / 2) + 1, gold: logEntries[i], silver: logEntries[i + 1] });
   }
 
+  // Column (file) labels row, shown above and below the board
+  const columnLabels = (
+    <div className="labels-row">
+      <div className="corner" />
+      {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+      <div className="corner" />
+    </div>
+  );
+
   return (
     <>
       <title>Play Arima</title>
@@ -604,12 +579,7 @@ export default function Play() {
           <div className="game-core">
             {/* Board */}
             <div className="board-container">
-              {/* Column labels */}
-              <div className="labels-row">
-                <div className="corner" />
-                {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-                <div className="corner" />
-              </div>
+              {columnLabels}
 
               {board.map((row, r) => (
                 <div key={r} className="board-row">
@@ -675,11 +645,7 @@ export default function Play() {
                 </div>
               ))}
 
-              <div className="labels-row">
-                <div className="corner" />
-                {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-                <div className="corner" />
-              </div>
+              {columnLabels}
             </div>
 
             {setupPhase ? (
@@ -749,15 +715,9 @@ export default function Play() {
                   <span className="log-num">{turnNum}.</span>
                   <span className={`log-steps log-gold${gold?.inProgress ? ' log-in-progress' : ''}`}>
                     {gold?.steps?.join(' ')}
-                    {/*{gold?.steps?.map((step, i) => (
-                      <span key={i}>{step}</span>
-                    ))}*/}
                   </span>
                   <span className={`log-steps log-silver${silver?.inProgress ? ' log-in-progress' : ''}`}>
                     {silver?.steps?.join(' ')}
-                    {/*{silver?.steps?.map((step, i) => (
-                      <span key={i}>{step}</span>
-                    ))}*/}
                   </span>
                 </div>
               ))}
