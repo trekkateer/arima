@@ -54,6 +54,13 @@
 }
 .step-pip.pip-used { background: #FFD700; }
 
+.setup-status {
+  color: #FFD700;
+  font-size: 0.95rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
 /* ── Player bar ── */
 .player-bar {
   display: flex;
@@ -297,6 +304,17 @@
   opacity: 0.4;
 }
 
+/* Setup phase: selected piece awaiting a swap target */
+.sq-setup-selected {
+  outline: 3px solid #FFD700;
+  outline-offset: -3px;
+}
+
+/* Setup phase: opponent's pieces, not yet interactive */
+.sq-setup-locked {
+  opacity: 0.55;
+}
+
 /* Ghost piece that follows the cursor during drag */
 .drag-ghost {
   position: fixed;
@@ -409,6 +427,22 @@
 }
 .btn-reset:hover { background: #c03030; }
 
+/* ── Setup banner ── */
+.setup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  color: #FFD700;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin: 8px 0;
+  max-width: 480px;
+  text-align: center;
+}
+
 /* ── Winner banner ── */
 .winner-banner {
   display: flex;
@@ -452,7 +486,9 @@
   font-size: 0.95rem;
   font-weight: bold;
   user-select: none;
+  list-style-type: '▶️';
 }
+.rules[open] summary { list-style-type: '🔽'; }
 .rules-body {
   margin-top: 12px;
   display: flex;

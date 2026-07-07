@@ -26,6 +26,8 @@ function stepNote(piece, fr, fc, tr, tc) {
   return pieceChar(piece) + toSquare(fr, fc) + toDir(fr, fc, tr, tc);
 }
 function capNote(piece, r, c) { return pieceChar(piece) + toSquare(r, c) + 'x'; }
+// Home rows each color may rearrange pieces within during setup
+const HOME_ROWS = { gold: [6, 7], silver: [0, 1] };
 // Returns pieces present in `before` but absent in `after` (trap captures)
 function findCaptures(before, after) {
   const caps = [];
@@ -46,6 +48,9 @@ export default function Play() {
   const [pushPhase, setPushPhase] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [dragPos, setDragPos] = useState(null);
+  // Placement phase before turn 1: 'gold' | 'silver' while arranging, null once play begins
+  const [setupPhase, setSetupPhase] = useState('gold');
+  const [setupSelected, setSetupSelected] = useState(null);
 
   const frozen = computeFrozen(board);
 
@@ -56,6 +61,8 @@ export default function Play() {
   frozenRef.current = frozen;
   const playerRef = useRef(player);
   playerRef.current = player;
+  const setupPhaseRef = useRef(setupPhase);
+  setupPhaseRef.current = setupPhase;
   const draggingRef = useRef(null);
   const dragStartPos = useRef(null);
   const dragDidFire = useRef(false); // suppresses onClick after a completed drag-drop
@@ -86,8 +93,13 @@ export default function Play() {
   // Records where a drag began; the global pointermove handler starts the drag once
   // the pointer moves more than 5px (so normal clicks aren't affected).
   function handlePiecePointerDown(e, row, col) {
-    if (winner || pushPhase) return;
     const piece = board[row][col];
+    if (setupPhase) {
+      if (!piece || piece.color !== setupPhase || !HOME_ROWS[setupPhase].includes(row)) return;
+      dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
+      return;
+    }
+    if (winner || pushPhase) return;
     if (!piece || piece.color !== player || frozen.has(`${row},${col}`)) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
   }
@@ -106,8 +118,12 @@ export default function Play() {
           draggingRef.current = { row, col };
           document.body.style.cursor = "grabbing";
           setDragging({ row, col });
-          setSelected({ row, col });
-          setValidMoves(getValidMoves(boardRef.current, row, col, playerRef.current, frozenRef.current));
+          if (setupPhaseRef.current) {
+            setSetupSelected({ row, col });
+          } else {
+            setSelected({ row, col });
+            setValidMoves(getValidMoves(boardRef.current, row, col, playerRef.current, frozenRef.current));
+          }
           setDragPos({ x: e.clientX, y: e.clientY });
         }
       } else {
@@ -151,7 +167,7 @@ export default function Play() {
   useEffect(() => {
     const onKeyDown = (e) => {
       // Detect special CTRL-Z code to undo step
-      if (e.ctrlKey) {
+      if (e.ctrlKey && !setupPhase) {
         if (e.key.charCodeAt(0) == 122 &&
           ((currMove !== 0 || pushPhase) && !winner)
         ) {
@@ -305,9 +321,62 @@ export default function Play() {
     }
   }
 
+  // Swaps two pieces within the active setup player's own home rows (click or drag-drop)
+  function handleSetupClick(row, col) {
+    const ownZone = HOME_ROWS[setupPhase].includes(row);
+
+    if (setupSelected) {
+      const { row: sr, col: sc } = setupSelected;
+      if (sr !== row || sc !== col) {
+        if (ownZone) {
+          const next = board.map(r => [...r]);
+          [next[sr][sc], next[row][col]] = [next[row][col], next[sr][sc]];
+          setBoard(next);
+        }
+      }
+      setSetupSelected(null);
+      return;
+    }
+
+    const piece = board[row][col];
+    if (ownZone && piece?.color === setupPhase) {
+      setSetupSelected({ row, col });
+    }
+  }
+
+  // Shuffles the active setup player's 16 pieces randomly across their two home rows
+  function randomizeSetup() {
+    const squares = HOME_ROWS[setupPhase].flatMap(r => Array.from({ length: 8 }, (_, c) => [r, c]));
+    const pieces = squares.map(([r, c]) => board[r][c]);
+    for (let i = pieces.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+    }
+    const next = board.map(r => [...r]);
+    squares.forEach(([r, c], i) => { next[r][c] = pieces[i]; });
+    setBoard(next);
+    setSetupSelected(null);
+  }
+
+  // Advances from gold's setup to silver's, then from silver's setup into turn 1
+  function confirmSetup() {
+    setSetupSelected(null);
+    if (setupPhase === 'gold') {
+      setSetupPhase('silver');
+      return;
+    }
+    const finalBoard = cloneBoard(board);
+    setSetupPhase(null);
+    setMoveHistory([finalBoard]);
+    setPositionLog([serializePosition(finalBoard, 'gold')]);
+    setPlayer('gold');
+    setCurrMove(0);
+  }
+
   // Single entry point for all board interactions (click and drag-drop). Dispatches
   // through push-dest → pull-choice → normal move → select piece → initiate push.
   function handleClick(row, col) {
+    if (setupPhase) { handleSetupClick(row, col); return; }
     if (winner) return;
     const cell = `${row},${col}`;
 
@@ -445,6 +514,8 @@ export default function Play() {
     setPushPhase(null);
     setGameLog([]);
     setTurnNotes([]);
+    setSetupPhase('gold');
+    setSetupSelected(null);
   }
 
   function undoMove() {//console.log("undoMove called");
@@ -515,11 +586,15 @@ export default function Play() {
         >
           Arima
         </h1>
-        <div className="step-track">
-          {[1,2,3,4].map(i => (
-            <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
-          ))}
-        </div>
+        {setupPhase ? (
+          <div className="setup-status">Setup: {setupPhase === 'gold' ? 'Gold' : 'Silver'}</div>
+        ) : (
+          <div className="step-track">
+            {[1,2,3,4].map(i => (
+              <div key={i} className={`step-pip ${i <= currMove ? 'pip-used' : ''}`} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="game-container">
@@ -548,6 +623,8 @@ export default function Play() {
                     pushPhase.pushee.row === r && pushPhase.pushee.col === c;
                   const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
                   const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
+                  const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
+                  const isSetupLocked = setupPhase && piece && piece.color !== setupPhase;
 
                   return (
                     <div className={[
@@ -559,6 +636,8 @@ export default function Play() {
                         isPushActive ? 'sq-push-active' : '',
                         isPushDest ? 'sq-push-dest' : '',
                         isPullable ? 'sq-pullable' : '',
+                        isSetupSel ? 'sq-setup-selected' : '',
+                        isSetupLocked ? 'sq-setup-locked' : '',
                         dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
                         r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
                         c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
@@ -574,7 +653,9 @@ export default function Play() {
                       {piece ? (
                         <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
                           title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                          style={{ cursor: piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default' }}
+                          style={{ cursor: setupPhase
+                            ? (piece.color === setupPhase ? 'grab' : 'default')
+                            : (piece.color === player && !isFrozen && !winner && !pushPhase ? 'grab' : 'default') }}
                           onPointerDown={(e) => handlePiecePointerDown(e, r, c)}
                         >
                           {PIECE_EMOJI[piece.type]}
@@ -598,26 +679,46 @@ export default function Play() {
             </div>
           </div>
 
-          <div className="controls">
-            <div className="move-controls">
-              <button className="btn-undo" onClick={undoMove}
-                disabled={(currMove === 0 && !pushPhase) || !!winner}
-              >
-                <FontAwesomeIcon icon={faCircleLeft} />
+          {setupPhase ? (
+            <div className="controls">
+              <button className="btn-end" onClick={randomizeSetup}>
+                Randomize
               </button>
-              <button className="btn-redo" onClick={redoMove}
-                disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}
-              >
-                <FontAwesomeIcon icon={faCircleRight} />
+              <button className="btn-end" onClick={confirmSetup}>
+                Confirm Setup
+              </button>
+              <button className="btn-reset" onClick={resetGame}>
+                New Game
               </button>
             </div>
-            <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
-              End Turn
-            </button>
-            <button className="btn-reset" onClick={resetGame}>
-              New Game
-            </button>
-          </div>
+          ) : (
+            <div className="controls">
+              <div className="move-controls">
+                <button className="btn-undo" onClick={undoMove}
+                  disabled={(currMove === 0 && !pushPhase) || !!winner}
+                >
+                  <FontAwesomeIcon icon={faCircleLeft} />
+                </button>
+                <button className="btn-redo" onClick={redoMove}
+                  disabled={currMove >= moveHistory.length - 1 || !!winner || !!pushPhase}
+                >
+                  <FontAwesomeIcon icon={faCircleRight} />
+                </button>
+              </div>
+              <button className="btn-end" onClick={endTurn} disabled={currMove === 0 || !!winner}>
+                End Turn
+              </button>
+              <button className="btn-reset" onClick={resetGame}>
+                New Game
+              </button>
+            </div>
+          )}
+
+          {setupPhase && (
+            <div className="setup-banner">
+              <span>{setupPhase === 'gold' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
+            </div>
+          )}
 
           {winner && (
             <div className="winner-banner">
@@ -669,6 +770,7 @@ export default function Play() {
             ))}
           </div>
           <ul className="rules-list">
+            <li><b>Setup:</b> Gold, then Silver, arranges their 16 pieces anywhere within their own two home rows before turn 1.</li>
             <li>Each turn you may take <b>1-4 steps</b>; press <b>End Turn</b> when done (auto-ends after 4).</li>
             <li>Pieces move one square orthogonally per step.</li>
             <li><b>Rabbits</b> cannot step backward (toward their own home row).</li>
