@@ -1,0 +1,53 @@
+.toast-container {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 2000;
+}
+
+.toast {
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+  min-width: 320px; max-width: 360px;
+  min-height: 48px;
+  padding: 12px 20px 12px 16px;
+  border-radius: 8px;
+  background: white;
+  color: black;
+  font-family: Georgia, serif;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 215, 0, 0.12);
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast-close {
+  position: absolute;
+  top: 4px; right: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+/* Vertical bar baked into the left margin that shrinks from full height to 0 over the toast's duration */
+.toast-timer {
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px;
+  height: 100%;
+  transform-origin: bottom;
+  animation-name: toast-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes toast-countdown {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(0); }
+}
+
+@keyframes toast-in {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
