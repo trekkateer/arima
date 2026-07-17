@@ -6,6 +6,7 @@ import RulesDropdown from '../components/RulesDropdown/RulesDropdown.js';
 import './Play.css';
 
 export default function Play() {
+  // Enormous hook that manages the entire game state
   const g = useGameState();
 
   return (
