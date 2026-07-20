@@ -6,7 +6,8 @@ import RulesDropdown from '../components/RulesDropdown/RulesDropdown.js';
 import './Play.css';
 
 export default function Play() {
-  // Enormous hook that manages the entire game state
+  // Core turn engine (board, moves, undo/redo, setup). Drag-and-drop and move-log
+  // formatting live in Board and MoveHistoryPanel, since only those need them.
   const g = useGameState();
 
   return (
@@ -41,12 +42,12 @@ export default function Play() {
               pushableEnemies={g.pushableEnemies}
               setupPhase={g.setupPhase}
               setupSelected={g.setupSelected}
-              dragging={g.dragging}
-              dragPos={g.dragPos}
               player={g.player}
               winner={g.winner}
-              onSquareClick={g.onSquareClick}
-              onPiecePointerDown={g.onPiecePointerDown}
+              onMove={g.handleClick}
+              setSelected={g.setSelected}
+              setValidMoves={g.setValidMoves}
+              setSetupSelected={g.setSetupSelected}
             />
 
             <GameControls
@@ -64,7 +65,13 @@ export default function Play() {
             />
           </div>
 
-          <MoveHistoryPanel logRows={g.logRows} ref={g.moveLogRef} />
+          <MoveHistoryPanel
+            gameLog={g.gameLog}
+            turnNotes={g.turnNotes}
+            currMove={g.currMove}
+            winner={g.winner}
+            player={g.player}
+          />
         </div>
 
         <RulesDropdown />

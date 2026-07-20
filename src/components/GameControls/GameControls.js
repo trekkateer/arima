@@ -11,13 +11,13 @@ export default function GameControls({
     <>
       {setupPhase ? (
         <div className="controls">
-          <button className="btn-end" onClick={onRandomize}>
+          <button className="blue-btn" onClick={onRandomize}>
             Randomize
           </button>
-          <button className="btn-end" onClick={onConfirmSetup}>
+          <button className="blue-btn" onClick={onConfirmSetup}>
             Confirm Setup
           </button>
-          <button className="btn-reset" onClick={onReset}>
+          <button className="red-btn" onClick={onReset}>
             New Game
           </button>
         </div>
@@ -35,10 +35,10 @@ export default function GameControls({
               <FontAwesomeIcon icon={faCircleRight} />
             </button>
           </div>
-          <button className="btn-end" onClick={onEndTurn} disabled={currMove === 0 || !!winner}>
+          <button className="blue-btn" onClick={onEndTurn} disabled={currMove === 0 || !!winner}>
             End Turn
           </button>
-          <button className="btn-reset" onClick={onReset}>
+          <button className="red-btn" onClick={onReset}>
             New Game
           </button>
         </div>

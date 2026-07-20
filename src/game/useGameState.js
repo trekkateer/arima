@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '../components/Toast/Toast.js';
 import {
   createInitialBoard, computeFrozen, getValidMoves,
@@ -12,9 +12,11 @@ function cloneBoard(b) {
   return b.map(r => r.map(p => p ? { ...p } : null));
 }
 
-// Owns the entire Arima turn engine: board state, undo/redo history, setup phase,
-// push/pull, drag-and-drop, and move notation. Returns everything the Play page
-// needs to render, plus the handlers it wires up to Board/GameControls/MoveHistoryPanel.
+// Owns the core Arima turn engine: board state, undo/redo history, setup phase,
+// push/pull, and move notation. Drag-and-drop (Board) and move-log row-building
+// (MoveHistoryPanel) live in those components instead, since only they need them.
+// Returns everything the Play page needs to render, plus the handlers it wires up
+// to Board/GameControls/MoveHistoryPanel.
 export function useGameState() {
   // State variables
   const [board, setBoard] = useState(createInitialBoard);
@@ -24,27 +26,11 @@ export function useGameState() {
   const [currMove, setCurrMove] = useState(0);
   const [winner, setWinner] = useState(null);
   const [pushPhase, setPushPhase] = useState(null);
-  const [dragging, setDragging] = useState(null);
-  const [dragPos, setDragPos] = useState(null);
   const [setupPhase, setSetupPhase] = useState('gold');
   const [setupSelected, setSetupSelected] = useState(null);
 
   // Returns a set of "frozen" squares
   const frozen = computeFrozen(board);
-
-  // Refs so global pointer handlers always see the latest state without stale closures
-  const boardRef = useRef(board);
-  boardRef.current = board;
-  const frozenRef = useRef(frozen);
-  frozenRef.current = frozen;
-  const playerRef = useRef(player);
-  playerRef.current = player;
-  const setupPhaseRef = useRef(setupPhase);
-  setupPhaseRef.current = setupPhase;
-  const draggingRef = useRef(null);
-  const dragStartPos = useRef(null);
-  const dragDidFire = useRef(false); // suppresses onClick after a completed drag-drop
-  const handleClickRef = useRef(null);
 
   // Move history and position log
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
@@ -56,86 +42,6 @@ export function useGameState() {
   // kept for redo, just like moveHistory. Index i holds notation for the move from
   // moveHistory[i] → moveHistory[i+1], as an array of step strings (1 move + captures).
   const [turnNotes, setTurnNotes] = useState([]);
-
-  // Ref so the move-log panel can auto-scroll to the latest entry
-  const moveLogRef = useRef(null);
-  useEffect(() => {
-    if (moveLogRef.current)
-      moveLogRef.current.scrollTop = moveLogRef.current.scrollHeight;
-  }, [gameLog, currMove]);
-
-  // Records where a drag began; the global pointermove handler starts the drag once
-  // the pointer moves more than 5px (so normal clicks aren't affected).
-  function handlePiecePointerDown(e, row, col) {
-    const piece = board[row][col];
-    if (setupPhase) {
-      if (!piece || piece.color !== setupPhase || !HOME_ROWS[setupPhase].includes(row)) return;
-      dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
-      return;
-    }
-    if (winner || pushPhase) return;
-    if (!piece || piece.color !== player || frozen.has(`${row},${col}`)) return;
-    dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
-  }
-
-  // Global pointer listeners: handle drag threshold, ghost position, and drop detection.
-  // Set up once; all mutable values come from refs so closures never go stale.
-  useEffect(() => {
-    function onMove(e) {
-      if (!dragStartPos.current) return;
-      if (!draggingRef.current) {
-        // Start drag once pointer moves more than 5px
-        const dx = e.clientX - dragStartPos.current.x;
-        const dy = e.clientY - dragStartPos.current.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 5) {
-          const { row, col } = dragStartPos.current;
-          draggingRef.current = { row, col };
-          document.body.style.cursor = "grabbing";
-          setDragging({ row, col });
-          if (setupPhaseRef.current) {
-            setSetupSelected({ row, col });
-          } else {
-            setSelected({ row, col });
-            setValidMoves(getValidMoves(boardRef.current, row, col, playerRef.current, frozenRef.current));
-          }
-          setDragPos({ x: e.clientX, y: e.clientY });
-        }
-      } else {
-        setDragPos({ x: e.clientX, y: e.clientY });
-      }
-    }
-
-    function onUp(e) {
-      if (!dragStartPos.current) return;
-      const wasDragging = !!draggingRef.current;
-      draggingRef.current = null;
-      dragStartPos.current = null;
-      document.body.style.cursor = '';
-      setDragging(null);
-      setDragPos(null);
-      if (wasDragging) {
-        // Flag set so the onClick on the source square doesn't double-fire
-        dragDidFire.current = true;
-        const elements = document.elementsFromPoint(e.clientX, e.clientY);
-        const sq = elements.find(el => el.dataset?.row !== undefined);
-        if (sq) {
-          handleClickRef.current(parseInt(sq.dataset.row), parseInt(sq.dataset.col));
-        } else {
-          setSelected(null);
-          setValidMoves(new Set());
-        }
-      }
-    }
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Allows us to listen to the the entire document and CTRL-Z or CTRL-Y no matter what element is focused
   useEffect(() => {
@@ -436,12 +342,6 @@ export function useGameState() {
     setValidMoves(new Set());
   }
 
-  // Suppresses the onClick that follows a completed drag-drop on the source square
-  function onSquareClick(row, col) {
-    if (dragDidFire.current) { dragDidFire.current = false; return; }
-    handleClick(row, col);
-  }
-
   // Manually ends the current turn early; requires at least one step to have been taken
   function endTurn() {
     if (currMove === 0) return;
@@ -507,30 +407,16 @@ export function useGameState() {
     setSelected(null);
   }
 
-  // Always points to the latest handleClick so the global pointer handlers avoid stale closures
-  handleClickRef.current = handleClick;
-
   // Derived for rendering: enemies the selected piece can push (shown when no push phase active)
   const pushableEnemies = (selected && !pushPhase && currMove <= 2)
     ? getPushableEnemies(board, selected.row, selected.col, frozen)
     : new Set();
 
-  // Build move-log rows: completed turns paired as (gold, silver), with current in-progress turn appended
-  const logEntries = [...gameLog];
-  const inProgressSteps = turnNotes.slice(0, currMove).flat();
-  if (inProgressSteps.length > 0 && !winner) {
-    logEntries.push({ player, steps: inProgressSteps, inProgress: true });
-  }
-  const logRows = [];
-  for (let i = 0; i < logEntries.length; i += 2) {
-    logRows.push({ turnNum: Math.floor(i / 2) + 1, gold: logEntries[i], silver: logEntries[i + 1] });
-  }
-
   return {
     board, selected, validMoves, frozen, player, currMove, winner, pushPhase,
-    dragging, dragPos, setupPhase, setupSelected, pushableEnemies, logRows,
-    moveHistoryLength: moveHistory.length, moveLogRef,
-    onSquareClick, onPiecePointerDown: handlePiecePointerDown,
-    undoMove, redoMove, endTurn, resetGame, randomizeSetup, confirmSetup,
+    setupPhase, setupSelected, pushableEnemies,
+    gameLog, turnNotes, moveHistoryLength: moveHistory.length,
+    setSelected, setValidMoves, setSetupSelected,
+    handleClick, undoMove, redoMove, endTurn, resetGame, randomizeSetup, confirmSetup,
   };
 }

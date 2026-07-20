@@ -53,7 +53,7 @@ Pure functions for Arimaa step notation (`stepNote`, `capNote`, `toSquare`, `toD
 
 ### Game engine hook (`src/game/useGameState.js`)
 
-All game state and turn logic lives in one custom hook, `useGameState()`, called once from `src/pages/Play.js`. Play.js itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, `MoveHistoryPanel`, and `RulesDropdown` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.js`). Key state variables inside the hook:
+The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.js`. Play.js itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, `MoveHistoryPanel`, and `RulesDropdown` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.js`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
 
 - `board` — current board
 - `selected` — `{ row, col }` of the piece the current player has clicked
@@ -61,17 +61,18 @@ All game state and turn logic lives in one custom hook, `useGameState()`, called
 - `player` — `'gold'` | `'silver'`
 - `currMove` — steps used this turn (0–4); auto-ends turn at 4
 - `pushPhase` — `null` | `{ type:'push_dest', pusher, pushee, dests }` | `{ type:'pull_choice', from, pullables }`
-- `dragging` — `{ row, col }` of piece being dragged, or `null`
 - `moveHistory` — array of board snapshots indexed by `currMove` (supports undo/redo within a turn)
 - `positionLog` — array of `serializePosition` strings across the whole game (repetition detection)
 
-**Turn flow:** `handleClick(row, col)` (exposed to `Board` as `onSquareClick`, wrapped to suppress the click that follows a completed drag-drop) is the single entry point for both click and drag interactions. It dispatches through push-dest → pull-choice → execute-queued-move → select-piece → initiate-push. After each move, `applyTraps` and `checkWinner` run. At step 4 (or on "End Turn"), `completeTurn` checks repetition/immobilization, then flips `player` and resets `currMove`/`moveHistory`.
+**Turn flow:** `handleClick(row, col)` (returned by the hook and passed to `Board` as `onMove`) is the single entry point for both click and drag interactions. It dispatches through push-dest → pull-choice → execute-queued-move → select-piece → initiate-push. After each move, `applyTraps` and `checkWinner` run. At step 4 (or on "End Turn"), `completeTurn` checks repetition/immobilization, then flips `player` and resets `currMove`/`moveHistory`.
 
 **Push** is a 2-click sequence: select own piece → click an orange-highlighted weaker enemy (sets `pushPhase.type = 'push_dest'`) → click a purple destination. Costs 2 steps via `executePush`.
 
 **Pull** is offered automatically after any normal move: if the mover survived and had a weaker enemy adjacent to its origin, those enemies highlight teal (`pushPhase.type = 'pull_choice'`). Clicking one calls `executePull`. Costs 2 steps total (1 for the move + 1 for the pull).
 
-**Drag and drop** mirrors the click flow via global `pointermove`/`pointerup` listeners (not native HTML5 drag-and-drop): once the pointer moves >5px past `onPiecePointerDown`, the piece becomes "dragging" and follows the cursor; on release, `handleClick` fires on whatever square is under the pointer. Drag is disabled during push/pull phases and when a winner exists.
+**Drag and drop** (`src/components/Board/useDragAndDrop.js`) mirrors the click flow via global `pointermove`/`pointerup` listeners (not native HTML5 drag-and-drop): once the pointer moves >5px past `onPiecePointerDown`, the piece becomes "dragging" and follows the cursor; on release, `Board`'s `onSquareClick` fires `useGameState`'s `handleClick` on whatever square is under the pointer, and suppresses the click event that would otherwise follow on the source square. Drag is disabled during push/pull phases and when a winner exists. This hook is colocated with `Board` (rather than living in `useGameState`) since it's the only consumer; it takes `board`/`player`/`frozen`/`setupPhase`/`winner`/`pushPhase` plus the `setSelected`/`setValidMoves`/`setSetupSelected` setters and raw `handleClick` from `useGameState` as inputs.
+
+**Move log** (`src/components/MoveHistoryPanel/MoveHistoryPanel.js`) builds its own display rows from the hook's raw `gameLog` (completed turns) and `turnNotes` (current in-progress turn) props, and owns its own auto-scroll ref — again colocated since only this component needs either.
 
 ### Toast notifications (`src/components/Toast/Toast.js`)
 

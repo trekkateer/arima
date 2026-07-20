@@ -181,16 +181,11 @@
 }
 
 /* ── Labels ── */
-.labels-row {
-  display: flex;
-}
 .corner {
-  width: 24px;
-  height: 20px;
+  width: 24px; height: 20px;
 }
-.col-lbl {
-  width: 64px;
-  height: 20px;
+.col-label {
+  width: 64px; height: 20px;
   text-align: center;
   line-height: 20px;
   font-size: 11px;
@@ -198,11 +193,7 @@
   user-select: none;
 }
 
-.board-row {
-  display: flex;
-  align-items: stretch;
-}
-.row-lbl {
+.row-label {
   width: 24px;
   display: flex;
   align-items: center;
@@ -214,23 +205,15 @@
 
 /* ── Squares ── */
 .square {
-  width: 64px;
-  height: 64px;
+  width: 64px; height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-}
 
-.square {
   background: #F0D9B5;
   border: 1px solid #B58863;
 }
-.square.left-edge   { border-left-width: 2px; }
-.square.right-edge  { border-right-width: 2px; }
-.square.top-edge    { border-top-width: 2px; }
-.square.bottom-edge { border-bottom-width: 2px; }
-
 
 /* Trap marker: subtle red X behind the piece */
 .square.sq-trap {
@@ -246,6 +229,7 @@
   line-height: 1;
 }
 
+/* Custom highlight states that a square can have */
 .sq-selected {
   outline: 3px solid #4A90E2;
   outline-offset: -3px;
@@ -258,8 +242,7 @@
 
 /* Move hint dot on empty target squares */
 .move-hint {
-  width: 22px;
-  height: 22px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: rgba(60, 200, 60, 0.65);
   pointer-events: none;
@@ -285,8 +268,7 @@
 .sq-push-dest:hover { opacity: 0.85; }
 
 .push-dest-hint {
-  width: 22px;
-  height: 22px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: rgba(160, 60, 220, 0.65);
   pointer-events: none;
@@ -372,7 +354,7 @@
   gap: 6px;
 }
 
-.btn-end, .btn-reset {
+.blue-btn, .red-btn {
   padding: 9px 24px;
   border: none;
   border-radius: 5px;
@@ -382,19 +364,19 @@
   font-weight: bold;
   transition: background 0.15s, transform 0.1s;
 }
-.btn-end:active, .btn-reset:active { transform: scale(0.97); }
+.blue-btn:active, .red-btn:active { transform: scale(0.97); }
 
-.btn-end {
+.blue-btn {
   background: #4A90E2;
-  color: #fff;
+  color: black;
 }
-.btn-end:hover:not(:disabled) { background: #3a80d2; }
-.btn-end:disabled { background: #555; color: #888; cursor: not-allowed; }
+.blue-btn:hover:not(:disabled) { background: #3a80d2; }
+.blue-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
 
 .btn-undo {
   width: 20px; height: 26px;
   background: #888;
-  color: #fff;
+  color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -409,7 +391,7 @@
 .btn-redo {
   width: 20px; height: 26px;
   background: #888;
-  color: #fff;
+  color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -421,11 +403,11 @@
 .btn-redo:hover:not(:disabled) { background: #777; }
 .btn-redo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
 
-.btn-reset {
+.red-btn {
   background: #D94040;
-  color: #fff;
+  color: black;
 }
-.btn-reset:hover { background: #c03030; }
+.red-btn:hover { background: #c03030; }
 
 /* ── Setup banner ── */
 .setup-banner {

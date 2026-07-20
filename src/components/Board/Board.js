@@ -1,8 +1,10 @@
+import { useState, useEffect, useRef } from 'react';
 import { PIECE_NAMES, PIECE_EMOJI, TRAP_SET } from '../../game/arima';
+import { useDragAndDrop } from './useDragAndDrop.js';
 
 // Renders the 8x8 board grid plus the drag ghost that follows the cursor while dragging.
-// All interaction state (selection, valid moves, push/pull phase, setup) is computed by
-// the caller and passed in as plain props/sets so this component stays presentation-only.
+// Selection/valid-move/push-phase state is computed by the caller and passed in as plain
+// props/sets; drag-and-drop is owned locally since only this component renders it.
 export default function Board({
   board,
   selected,
@@ -12,22 +14,36 @@ export default function Board({
   pushableEnemies,
   setupPhase,
   setupSelected,
-  dragging, dragPos,
   player, winner,
-  onSquareClick,
-  onPiecePointerDown
+  onMove,
+  setSelected,
+  setValidMoves,
+  setSetupSelected,
 }) {
-  return (
-    <div className="board-container">
-      <div className="labels-row">
+  const { dragging, dragPos, onPiecePointerDown, onSquareClick } = useDragAndDrop({
+    board, player, frozen, setupPhase, winner, pushPhase,
+    setSelected, setValidMoves, setSetupSelected, onSquareClick: onMove,
+  });
+
+  function ColLabels() {
+    return (
+      <div style={{ display: "flex" }}>
         <div className="corner" />
-        {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
+        {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(l => <div key={l} className="col-label">{l}</div>)}
         <div className="corner" />
       </div>
+    )
+  };
 
+  return (
+    <div className="board-container">
+      {/* Column labels at the top and bottom of the board */}
+      <ColLabels />
+
+      {/* Board rows, each with a row label on the left and right */}
       {board.map((row, r) => (
-        <div key={r} className="board-row">
-          <div className="row-lbl">{8 - r}</div>
+        <div key={r} style={{ display: "flex", alignItems: "stretch" }}>
+          <div className="row-label">{8 - r}</div>
           {row.map((piece, c) => {
             const key = `${r},${c}`;
             const isSelected = selected?.row === r && selected?.col === c;
@@ -55,10 +71,14 @@ export default function Board({
                   isPullable ? 'sq-pullable' : '',
                   isSetupSel ? 'sq-setup-selected' : '',
                   isSetupLocked ? 'sq-setup-locked' : '',
-                  dragging?.row === r && dragging?.col === c ? 'sq-dragging' : '',
-                  r === 0 ? 'top-edge' : r === 7 ? 'bottom-edge' : '',
-                  c === 0 ? 'left-edge' : c === 7 ? 'right-edge' : '',
+                  dragging?.row === r && dragging?.col === c ? 'sq-dragging' : ''
                 ].filter(Boolean).join(' ')}
+                style={{
+                  borderLeftWidth: (c === 0) ? "2px" : "",
+                  borderRightWidth: (c === 7) ? "2px" : "",
+                  borderTopWidth: (r === 0) ? "2px" : "",
+                  borderBottomWidth: (r === 7) ? "2px" : "",
+                }}
                 key={c}
                 data-row={r}
                 data-col={c}
@@ -82,15 +102,12 @@ export default function Board({
               </div>
             );
           })}
-          <div className="row-lbl">{8 - r}</div>
+          <div className="row-label">{8 - r}</div>
         </div>
       ))}
 
-      <div className="labels-row">
-        <div className="corner" />
-        {'abcdefgh'.split('').map(l => <div key={l} className="col-lbl">{l}</div>)}
-        <div className="corner" />
-      </div>
+      {/* Column labels at the bottom of the board */}
+      <ColLabels />
 
       {/* Custom drag ghost: follows the cursor while dragging */}
       {dragging && dragPos && board[dragging.row][dragging.col] && (
