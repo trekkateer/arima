@@ -116,22 +116,28 @@ export function applyTraps(board) {
   return next;
 }
 
-// Returns 'gold' if gold wins, 'silver' if silver wins, or null if no winner yet
-export function checkWinner(board) {
-  for (let c = 0; c < 8; c++) {
-    if (board[0][c]?.color === 'gold' && board[0][c]?.type === 'R') return 'gold';
-    if (board[7][c]?.color === 'silver' && board[7][c]?.type === 'R') return 'silver';
-  }
-  let gr = 0, sr = 0;
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      if (board[r][c]?.type === 'R') {
-        if (board[r][c].color === 'gold') gr++;
-        else sr++;
-      }
-    }
-  if (gr === 0) return 'silver';
-  if (sr === 0) return 'gold';
+// Returns 'gold' if gold wins, 'silver' if silver wins, or null if no winner yet.
+// Only meaningful on the *final* position of a turn — Arimaa evaluates goal at the
+// end of a turn, so a rabbit that touches the goal row mid-turn and steps away has
+// not won. `mover` is the player who just finished their turn; the checks are
+// ordered so the mover wins any tie (e.g. a turn that sends both sides' rabbits
+// home, or one that clears the last rabbits off both sides).
+export function checkWinner(board, mover) {
+  const opponent = mover === 'gold' ? 'silver' : 'gold';
+
+  // A rabbit of `color` standing on that color's goal row (gold → row 0, silver → row 7)
+  const atGoal = (color) => {
+    const goalRow = color === 'gold' ? 0 : 7;
+    return board[goalRow].some(p => p?.color === color && p.type === 'R');
+  };
+
+  const rabbitCount = (color) =>
+    board.flat().filter(p => p?.color === color && p.type === 'R').length;
+
+  if (atGoal(mover)) return mover;
+  if (atGoal(opponent)) return opponent;
+  if (rabbitCount(opponent) === 0) return mover;
+  if (rabbitCount(mover) === 0) return opponent;
   return null;
 }
 

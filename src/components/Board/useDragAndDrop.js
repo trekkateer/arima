@@ -8,7 +8,7 @@ import { HOME_ROWS } from '../../game/notation';
 // `onSquareClick` is the raw click handler (useGameState's handleClick) — on drop, this
 // hook fires it on whatever square is under the pointer, same as a real click would.
 export function useDragAndDrop({
-  board, player, frozen, setupPhase, winner, pushPhase,
+  board, player, frozen, setupPhase, winner, pushPhase, stepsExhausted,
   setSelected, setValidMoves, setSetupSelected, onSquareClick,
 }) {
   const [dragging, setDragging] = useState(null);
@@ -39,7 +39,8 @@ export function useDragAndDrop({
       dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
       return;
     }
-    if (winner || pushPhase) return;
+    // stepsExhausted: turn was refused as an illegal pass, so nothing but undo works
+    if (winner || pushPhase || stepsExhausted) return;
     if (!piece || piece.color !== player || frozen.has(`${row},${col}`)) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
   }

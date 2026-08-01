@@ -44,6 +44,7 @@ export default function Play() {
               setupSelected={g.setupSelected}
               player={g.player}
               winner={g.winner}
+              stepsExhausted={g.stepsExhausted}
               onMove={g.handleClick}
               setSelected={g.setSelected}
               setValidMoves={g.setValidMoves}
@@ -56,6 +57,7 @@ export default function Play() {
               winner={g.winner}
               pushPhase={g.pushPhase}
               moveHistoryLength={g.moveHistoryLength}
+              canEndTurn={g.canEndTurn}
               onUndo={g.undoMove}
               onRedo={g.redoMove}
               onEndTurn={g.endTurn}

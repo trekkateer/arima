@@ -4,7 +4,7 @@ import { faCircleLeft, faCircleRight } from '@fortawesome/free-solid-svg-icons';
 // Buttons below the board, plus the setup/winner banners. Swaps between the
 // setup toolbar (randomize/confirm) and the in-game toolbar (undo/redo/end turn).
 export default function GameControls({
-  setupPhase, currMove, winner, pushPhase, moveHistoryLength,
+  setupPhase, currMove, winner, pushPhase, moveHistoryLength, canEndTurn,
   onUndo, onRedo, onEndTurn, onReset, onRandomize, onConfirmSetup,
 }) {
   return (
@@ -35,7 +35,10 @@ export default function GameControls({
               <FontAwesomeIcon icon={faCircleRight} />
             </button>
           </div>
-          <button className="blue-btn" onClick={onEndTurn} disabled={currMove === 0 || !!winner}>
+          {/* Disabled until the turn has actually changed the position — Arimaa has no pass */}
+          <button className="blue-btn" onClick={onEndTurn} disabled={!canEndTurn || !!winner}
+            title={currMove > 0 && !canEndTurn ? 'Your turn must change the position' : undefined}
+          >
             End Turn
           </button>
           <button className="red-btn" onClick={onReset}>

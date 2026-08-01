@@ -37,7 +37,7 @@ All game rules are **pure functions** with no React state — import and call fr
 | `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                       |
 | `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled |
 | `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board      |
-| `checkWinner(board)`                                              | Returns`'gold'`, `'silver'`, or `null`                       |
+| `checkWinner(board, mover)`                                       | Goal/elimination winner:`'gold'`, `'silver'`, or `null`. Only valid on a turn's *final* position |
 | `serializePosition(board, player)`                                | Compact string for repetition detection                            |
 | `hasAnyMove(board, player)`                                       | Immobilization check                                               |
 
@@ -64,7 +64,12 @@ The core turn engine — board state, undo/redo history, setup phase, push/pull,
 - `moveHistory` — array of board snapshots indexed by `currMove` (supports undo/redo within a turn)
 - `positionLog` — array of `serializePosition` strings across the whole game (repetition detection)
 
-**Turn flow:** `handleClick(row, col)` (returned by the hook and passed to `Board` as `onMove`) is the single entry point for both click and drag interactions. It dispatches through push-dest → pull-choice → execute-queued-move → select-piece → initiate-push. After each move, `applyTraps` and `checkWinner` run. At step 4 (or on "End Turn"), `completeTurn` checks repetition/immobilization, then flips `player` and resets `currMove`/`moveHistory`.
+**Turn flow:** `handleClick(row, col)` (returned by the hook and passed to `Board` as `onMove`) is the single entry point for both click and drag interactions. It dispatches through push-dest → pull-choice → execute-queued-move → select-piece → initiate-push. `applyTraps` runs after each step; win conditions do **not**. At step 4 (or on "End Turn"), `completeTurn` checks `checkWinner` (goal/elimination), then repetition, then immobilization, then flips `player` and resets `currMove`/`moveHistory`.
+
+**End-of-turn rules.** Two Arimaa rules apply to the turn as a whole, not to individual steps:
+
+- **Goal is judged on the final position only.** A rabbit that steps onto its goal row mid-turn and then moves (or is pulled) away has not won, so `checkWinner` is called from `completeTurn` rather than `finalizeStep`. It takes the player who just moved so ties resolve in the mover's favour, matching the official check order (mover's goal → opponent's goal → opponent eliminated → mover eliminated).
+- **No passing.** The position after a turn must differ from the position at its start (`moveHistory[0]`). `endTurn` refuses with a toast, and the `canEndTurn` flag disables the End Turn button. If all 4 steps are spent on an unchanged position, `finalizeStep` refuses to complete the turn and sets `stepsExhausted` — `handleClick` and drag both no-op until the player undoes a step.
 
 **Push** is a 2-click sequence: select own piece → click an orange-highlighted weaker enemy (sets `pushPhase.type = 'push_dest'`) → click a purple destination. Costs 2 steps via `executePush`.
 

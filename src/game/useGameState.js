@@ -63,18 +63,34 @@ export function useGameState() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [undoMove, redoMove]);
 
-  // Called whenever a full turn ends. Checks repetition and immobilization, then switches players.
+  // Arimaa forbids passing: the position at the end of a turn must differ from the
+  // position at the start of it. moveHistory[0] is always the turn-start snapshot
+  // (undo/redo slice the tail but never index 0), so that's what we compare against.
+  function positionUnchanged(newBoard, turnStartBoard) {
+    return serializePosition(newBoard, player) === serializePosition(turnStartBoard, player);
+  }
+
+  // Called whenever a full turn ends. Checks goal/elimination, then repetition and
+  // immobilization, then switches players.
   // stepStrings: flat array of all notation strings for this turn, ready to store.
   function completeTurn(newBoard, stepStrings) {
     const nextPlayer = player === 'gold' ? 'silver' : 'gold';
-    const posKey = serializePosition(newBoard, nextPlayer);
-    const occurrences = positionLog.filter(k => k === posKey).length;
 
     setPushPhase(null);
     setSelected(null);
     setValidMoves(new Set());
     setGameLog(prev => [...prev, { player, steps: stepStrings }]);
     setTurnNotes([]);
+
+    // Goal and elimination are judged on the final position of the turn, not per step
+    const newWinner = checkWinner(newBoard, player);
+    if (newWinner) {
+      setWinner(newWinner);
+      return;
+    }
+
+    const posKey = serializePosition(newBoard, nextPlayer);
+    const occurrences = positionLog.filter(k => k === posKey).length;
 
     if (occurrences >= 2) {
       // Current player caused a 3rd repetition — they lose
@@ -98,30 +114,29 @@ export function useGameState() {
   }
 
   // Shared tail end of every step (single move, push, or pull): records notation,
-  // checks for a win, then either completes the turn or hands off to `onContinue`
-  // for step-specific follow-up (re-selecting a piece, offering a pull, etc).
+  // then either completes the turn or hands off to `onContinue` for step-specific
+  // follow-up (re-selecting a piece, offering a pull, etc). Win conditions are NOT
+  // checked here — they belong to completeTurn, since Arimaa judges the position at
+  // the end of a turn rather than after each step.
   function finalizeStep(newBoard, newTurnNotes, newCurrMove, nextHistory, onContinue) {
-    const flatNotes = newTurnNotes.flat();
-    const newWinner = checkWinner(newBoard);
-
     setBoard(newBoard);
     setMoveHistory(nextHistory);
     setTurnNotes(newTurnNotes);
     setPushPhase(null);
-
-    if (newWinner) {
-      setWinner(newWinner);
-      setSelected(null);
-      setValidMoves(new Set());
-      setGameLog(prev => [...prev, { player, steps: flatNotes }]);
-      setTurnNotes([]);
-      return;
-    }
+    setCurrMove(newCurrMove);
 
     if (newCurrMove >= 4) {
-      completeTurn(newBoard, flatNotes);
+      // All 4 steps spent, but shuffling a piece out and back is an illegal pass.
+      // Leave the turn open so the player can undo and try something else.
+      if (positionUnchanged(newBoard, nextHistory[0])) {
+        toast("Your turn must change the position — undo and try a different move.",
+          { type: "error", duration: 4000 });
+        setSelected(null);
+        setValidMoves(new Set());
+        return;
+      }
+      completeTurn(newBoard, newTurnNotes.flat());
     } else {
-      setCurrMove(newCurrMove);
       onContinue();
     }
   }
@@ -250,6 +265,9 @@ export function useGameState() {
   function handleClick(row, col) {
     if (setupPhase) { handleSetupClick(row, col); return; }
     if (winner) return;
+    // All 4 steps spent and the turn was refused as an illegal pass — undo is the
+    // only way forward, so ignore board clicks rather than allowing a 5th step.
+    if (currMove >= 4) return;
     const cell = `${row},${col}`;
 
     // Push destination phase: pusher + pushee chosen, pick where pushee goes
@@ -342,9 +360,14 @@ export function useGameState() {
     setValidMoves(new Set());
   }
 
-  // Manually ends the current turn early; requires at least one step to have been taken
+  // Manually ends the current turn early; requires at least one step to have been
+  // taken and the position to have actually changed (no passing)
   function endTurn() {
     if (currMove === 0) return;
+    if (positionUnchanged(board, moveHistory[0])) {
+      toast("Your turn must change the position.", { type: "error", duration: 3000 });
+      return;
+    }
     completeTurn(board, turnNotes.slice(0, currMove).flat());
   }
 
@@ -412,9 +435,17 @@ export function useGameState() {
     ? getPushableEnemies(board, selected.row, selected.col, frozen)
     : new Set();
 
+  // Derived for rendering: whether this turn is legal to end yet (steps taken and
+  // the position actually changed). Drives the End Turn button's disabled state.
+  const canEndTurn = !setupPhase && currMove > 0 && !positionUnchanged(board, moveHistory[0]);
+
+  // Derived for rendering: all 4 steps are spent but the turn was refused as an
+  // illegal pass, so the board is locked until the player undoes a step.
+  const stepsExhausted = !setupPhase && !winner && currMove >= 4;
+
   return {
     board, selected, validMoves, frozen, player, currMove, winner, pushPhase,
-    setupPhase, setupSelected, pushableEnemies,
+    setupPhase, setupSelected, pushableEnemies, canEndTurn, stepsExhausted,
     gameLog, turnNotes, moveHistoryLength: moveHistory.length,
     setSelected, setValidMoves, setSetupSelected,
     handleClick, undoMove, redoMove, endTurn, resetGame, randomizeSetup, confirmSetup,
