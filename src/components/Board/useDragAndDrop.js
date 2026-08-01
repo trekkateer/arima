@@ -11,6 +11,7 @@ export function useDragAndDrop({
   board, player, frozen, setupPhase, winner, pushPhase, stepsExhausted,
   setSelected, setValidMoves, setSetupSelected, onSquareClick,
 }) {
+  // Local state for the drag ghost and cursor-following position
   const [dragging, setDragging] = useState(null);
   const [dragPos, setDragPos] = useState(null);
 
@@ -28,7 +29,8 @@ export function useDragAndDrop({
 
   const draggingRef = useRef(null);
   const dragStartPos = useRef(null);
-  const dragDidFire = useRef(false); // suppresses onClick after a completed drag-drop
+  // Timestamp of the last completed drag-drop, used to suppress the click that may follow it.
+  const dragEndAt = useRef(0);
 
   // Records where a drag began; the global pointermove handler starts the drag once
   // the pointer moves more than 5px (so normal clicks aren't affected).
@@ -81,8 +83,8 @@ export function useDragAndDrop({
       setDragging(null);
       setDragPos(null);
       if (wasDragging) {
-        // Flag set so the onClick on the source square doesn't double-fire
-        dragDidFire.current = true;
+        // Marked so a click arriving in the same tick as this drop doesn't double-fire
+        dragEndAt.current = performance.now();
         const elements = document.elementsFromPoint(e.clientX, e.clientY);
         const sq = elements.find(el => el.dataset?.row !== undefined);
         if (sq) {
@@ -104,9 +106,12 @@ export function useDragAndDrop({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Suppresses the onClick that follows a completed drag-drop on the source square
+  // Suppresses the onClick the browser fires right after a drop on the source square,
+  // which would otherwise re-run handleClick and undo the selection the drop just made.
+  // The window is generous but far shorter than a human down-up-down cycle, so a real
+  // click can never be swallowed.
   function handleSquareClick(row, col) {
-    if (dragDidFire.current) { dragDidFire.current = false; return; }
+    if (performance.now() - dragEndAt.current < 100) return;
     onSquareClick(row, col);
   }
 

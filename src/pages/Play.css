@@ -37,7 +37,6 @@
 }
 .play-title:hover {
   cursor: pointer;
-  color: #FFB800;
 }
 
 /* ── Step tracker pips ── */
@@ -176,7 +175,7 @@
   flex-direction: column;
   border: 3px solid #3a2600;
   border-radius: 3px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
   background: #2c1a0e;
 }
 
@@ -302,8 +301,8 @@
   position: fixed;
   pointer-events: none;
   z-index: 1000;
-  transform: translate(-50%, -50%) scale(1.2);
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.6));
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
 }
 
 /* ── Pieces ── */
@@ -315,14 +314,13 @@
   justify-content: center;
   font-size: 26px;
   z-index: 2;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.45);
-  border: 2px solid rgba(0,0,0,0.15);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(0, 0, 0, 0.15);
   user-select: none;
   transition: transform 0.1s;
   cursor: pointer;
   touch-action: none;
 }
-/* .square:hover .piece:not(.pc-frozen) { transform: scale(1.08); } */
 .piece:active {
   cursor: grabbing !important;
 }
@@ -332,7 +330,7 @@
   border-color: #8B6500;
 }
 .pc-silver {
-  background: radial-gradient(circle at 35% 35%, #FFFFFF, #A8A8A8);
+  background: radial-gradient(circle at 35% 35%, white, #A8A8A8);
   border-color: #707070;
 }
 .pc-frozen {
@@ -455,8 +453,8 @@
 /* ── Rules section ── */
 .rules {
   margin-top: 20px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 12px 16px;
   max-width: 560px;

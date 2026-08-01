@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react';
 import { PIECE_NAMES, PIECE_EMOJI, TRAP_SET } from '../../game/arima';
 import { useDragAndDrop } from './useDragAndDrop.js';
 
@@ -46,12 +45,14 @@ export default function Board({
         <div key={r} style={{ display: "flex", alignItems: "stretch" }}>
           <div className="row-label">{8 - r}</div>
           {row.map((piece, c) => {
+            // Square properties
             const key = `${r},${c}`;
             const isSelected = selected?.row === r && selected?.col === c;
             const isTarget = validMoves.has(key);
             const isTrap = TRAP_SET.has(key);
             const isFrozen = piece && frozen.has(key);
 
+            // Piece properties
             const isPushable = pushableEnemies.has(key);
             const isPushActive = pushPhase?.type === 'push_dest' &&
               pushPhase.pushee.row === r && pushPhase.pushee.col === c;
@@ -59,49 +60,48 @@ export default function Board({
             const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
             const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
             const isSetupLocked = setupPhase && piece && piece.color !== setupPhase;
+            const isDragging = dragging?.row === r && dragging?.col === c;
 
-            return (
-              <div className={[
-                  'square',
-                  isTrap ? 'sq-trap' : '',
-                  isSelected ? 'sq-selected' : '',
-                  isTarget ? 'sq-target' : '',
-                  isPushable ? 'sq-pushable' : '',
-                  isPushActive ? 'sq-push-active' : '',
-                  isPushDest ? 'sq-push-dest' : '',
-                  isPullable ? 'sq-pullable' : '',
-                  isSetupSel ? 'sq-setup-selected' : '',
-                  isSetupLocked ? 'sq-setup-locked' : '',
-                  dragging?.row === r && dragging?.col === c ? 'sq-dragging' : ''
-                ].filter(Boolean).join(' ')}
-                style={{
-                  borderLeftWidth: (c === 0) ? "2px" : "",
-                  borderRightWidth: (c === 7) ? "2px" : "",
-                  borderTopWidth: (r === 0) ? "2px" : "",
-                  borderBottomWidth: (r === 7) ? "2px" : "",
-                }}
-                key={c}
-                data-row={r}
-                data-col={c}
-                onClick={() => onSquareClick(r, c)}
-              >
-                {piece ? (
-                  <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
-                    title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                    style={{ cursor: setupPhase
-                      ? (piece.color === setupPhase ? 'grab' : 'default')
-                      : (piece.color === player && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
-                    onPointerDown={(e) => onPiecePointerDown(e, r, c)}
-                  >
-                    {PIECE_EMOJI[piece.type]}
-                  </div>
-                ) : isTarget ? (
-                  <div className="move-hint" />
-                ) : isPushDest ? (
-                  <div className="push-dest-hint" />
-                ) : null}
-              </div>
-            );
+            return (<div className={[
+                'square',
+                isTrap ? 'sq-trap' : '',
+                isSelected ? 'sq-selected' : '',
+                isTarget ? 'sq-target' : '',
+                isPushable ? 'sq-pushable' : '',
+                isPushActive ? 'sq-push-active' : '',
+                isPushDest ? 'sq-push-dest' : '',
+                isPullable ? 'sq-pullable' : '',
+                isSetupSel ? 'sq-setup-selected' : '',
+                isSetupLocked ? 'sq-setup-locked' : '',
+                isDragging ? 'sq-dragging' : ''
+              ].filter(Boolean).join(' ')}
+              style={{
+                borderLeftWidth: (c === 0) ? "2px" : "",
+                borderRightWidth: (c === 7) ? "2px" : "",
+                borderTopWidth: (r === 0) ? "2px" : "",
+                borderBottomWidth: (r === 7) ? "2px" : "",
+              }}
+              key={c}
+              data-row={r}
+              data-col={c}
+              onClick={() => onSquareClick(r, c)}
+            >
+              {piece && !isDragging ? (
+                <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
+                  title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
+                  style={{ cursor: setupPhase
+                    ? (piece.color === setupPhase ? 'grab' : 'default')
+                    : (piece.color === player && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
+                  onPointerDown={(e) => onPiecePointerDown(e, r, c)}
+                >
+                  {PIECE_EMOJI[piece.type]}
+                </div>
+              ) : isTarget ? (
+                <div className="move-hint" />
+              ) : isPushDest ? (
+                <div className="push-dest-hint" />
+              ) : null}
+            </div>);
           })}
           <div className="row-label">{8 - r}</div>
         </div>
