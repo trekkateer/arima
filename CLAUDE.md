@@ -28,18 +28,19 @@ Two routes in `src/App.js`:
 
 All game rules are **pure functions** with no React state — import and call freely. Key exports:
 
-| Export                                                              | Purpose                                                            |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `createInitialBoard()`                                            | Returns 8×8 board array                                           |
-| `computeFrozen(board)`                                            | Returns`Set<"row,col">` of frozen pieces                         |
-| `getValidMoves(board, row, col, player, frozen)`                  | Returns`Set<"row,col">` of legal destinations                    |
-| `getPushableEnemies(board, row, col, frozen)`                     | Weaker adjacent enemies the selected piece can push                |
-| `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                       |
-| `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled |
-| `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board      |
+
+| Export                                                            | Purpose                                                                                          |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `createInitialBoard()`                                            | Returns 8×8 board array                                                                         |
+| `computeFrozen(board)`                                            | Returns`Set<"row,col">` of frozen pieces                                                         |
+| `getValidMoves(board, row, col, player, frozen)`                  | Returns`Set<"row,col">` of legal destinations                                                    |
+| `getPushableEnemies(board, row, col, frozen)`                     | Weaker adjacent enemies the selected piece can push                                              |
+| `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                                                     |
+| `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled                               |
+| `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board                                    |
 | `checkWinner(board, mover)`                                       | Goal/elimination winner:`'gold'`, `'silver'`, or `null`. Only valid on a turn's *final* position |
-| `serializePosition(board, player)`                                | Compact string for repetition detection                            |
-| `hasAnyMove(board, player)`                                       | Immobilization check                                               |
+| `serializePosition(board, player)`                                | Compact string for repetition detection                                                          |
+| `hasAnyMove(board, player)`                                       | Immobilization check                                                                             |
 
 **Board layout:** `board[row][col]`, row 0 = top (silver home), row 7 = bottom (gold home). Each cell is `null` or `{ id, type, color }` where `type` is one of `E M H D C R` (Elephant → Rabbit, strongest → weakest). Cells are addressed throughout as the string `"row,col"` stored in `Set`s.
 
@@ -87,4 +88,4 @@ Module-level queue, not React context — `toast(message, { type, duration })` c
 
 ### Comments
 
-Please write useful comments and do not delete comments even if you were not the one who wrote them. Comments should be short but descriptive.
+Please write useful comments and do not delete comments even if you were not the one who wrote them. Comments should be short but descriptive. Remember to be concise.
