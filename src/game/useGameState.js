@@ -34,6 +34,7 @@ export function useGameState() {
 
   // Move history and position log
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
+  const [halfPushSteps, setHalfPushSteps] = useState(new Set());
   const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'gold')]);
 
   // Completed turns: each entry is { player, steps: string[] }. Gold always goes first.
@@ -81,6 +82,7 @@ export function useGameState() {
     setValidMoves(new Set());
     setGameLog(prev => [...prev, { player, steps: stepStrings }]);
     setTurnNotes([]);
+    setHalfPushSteps(new Set());
 
     // Goal and elimination are judged on the final position of the turn, not per step
     const newWinner = checkWinner(newBoard, player);
@@ -124,6 +126,15 @@ export function useGameState() {
     setTurnNotes(newTurnNotes);
     setPushPhase(null);
     setCurrMove(newCurrMove);
+
+    // nextHistory drops everything past currMove, so stale markers go with it. A push is
+    // the only action that advances two steps at once, and the entry it leaves in between
+    // is illegal to stop on — mark it so undo/redo skip it.
+    setHalfPushSteps(prev => {
+      const next = new Set([...prev].filter(i => i <= currMove));
+      if (newCurrMove - currMove === 2) next.add(currMove + 1);
+      return next;
+    });
 
     if (newCurrMove >= 4) {
       // All 4 steps spent, but shuffling a piece out and back is an illegal pass.
@@ -253,6 +264,7 @@ export function useGameState() {
       const finalBoard = cloneBoard(board);
       setSetupPhase(null);
       setMoveHistory([finalBoard]);
+      setHalfPushSteps(new Set());
       setPositionLog([serializePosition(finalBoard, 'gold')]);
       setPlayer('gold');
       setCurrMove(0);
@@ -381,6 +393,7 @@ export function useGameState() {
     setCurrMove(0);
     setWinner(null);
     setMoveHistory([cloneBoard(initialBoard)]);
+    setHalfPushSteps(new Set());
     setPositionLog([serializePosition(initialBoard, 'gold')]);
     setPushPhase(null);
     setGameLog([]);
@@ -401,13 +414,18 @@ export function useGameState() {
     // Break the function if there are no moves to undo
     if (currMove === 0) return;
 
+    // Step back past any half-push entries, so undoing a push rewinds both of its steps
+    // rather than stranding the board between them
+    let target = currMove - 1;
+    while (target > 0 && halfPushSteps.has(target)) target--;
+
     // Get the previous board state from history
-    const prevBoard = moveHistory[currMove - 1];
+    const prevBoard = moveHistory[target];
     if (!prevBoard) return;
 
     // Sets the new board state (turnNotes is kept intact for redo, like moveHistory)
     setBoard(prevBoard);
-    setCurrMove(currMove - 1);
+    setCurrMove(target);
     setValidMoves(new Set());
     setSelected(null);
   }
@@ -419,13 +437,17 @@ export function useGameState() {
     // Break the function if there are no moves to redo
     if (currMove >= moveHistory.length - 1) return;
 
+    // Skip forward past any half-push entries, so redoing a push replays both of its steps
+    let target = currMove + 1;
+    while (target < moveHistory.length - 1 && halfPushSteps.has(target)) target++;
+
     // Get the next board state from history
-    const nextBoard = moveHistory[currMove + 1];
+    const nextBoard = moveHistory[target];
     if (!nextBoard) return;
 
     // Sets the new board state
     setBoard(nextBoard);
-    setCurrMove(currMove + 1);
+    setCurrMove(target);
     setValidMoves(new Set());
     setSelected(null);
   }
