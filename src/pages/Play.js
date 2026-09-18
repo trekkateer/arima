@@ -19,7 +19,7 @@ export default function Play() {
             Arima
           </h1>
           {g.setupPhase ? (
-            <div className="setup-status">Setup: {g.setupPhase === 'Au' ? 'Au' : 'Ag'}</div>
+            <div className="setup-status">Setup: {g.setupPhase === 'Au' ? 'Gold' : 'Silver'}</div>
           ) : (
             <div className="step-track">
               {[1,2,3,4].map(i => (

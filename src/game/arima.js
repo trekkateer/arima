@@ -10,10 +10,10 @@ export const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
 // Creates the initial board state
 export function createInitialBoard() {
   const board = Array.from({ length: 8 }, () => Array(8).fill(null));
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], color: 'Ag' }; });
-  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', color: 'Ag' };
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], color: 'Au' }; });
-  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', color: 'Au' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], colorID: 'Ag', color: 'silver' }; });
+  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', colorID: 'Ag', color: 'silver' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], colorID: 'Au', color: 'gold' }; });
+  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', colorID: 'Au', color: 'gold' };
   return board;
 }
 
@@ -30,7 +30,7 @@ export function computeFrozen(board) {
         if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
         const adj = board[nr][nc];
         if (!adj) continue;
-        if (adj.color === p.color) hasFriend = true;
+        if (adj.colorID === p.colorID) hasFriend = true;
         else if (STRENGTH[adj.type] > STRENGTH[p.type]) strongerEnemy = true;
       }
       if (strongerEnemy && !hasFriend) frozen.add(`${r},${c}`);
@@ -42,7 +42,7 @@ export function computeFrozen(board) {
 // Returns a set of "row,col" strings for valid move destinations for the piece at (row,col)
 export function getValidMoves(board, row, col, player, frozen) {
   const p = board[row][col];
-  if (!p || p.color !== player || frozen.has(`${row},${col}`)) return new Set();
+  if (!p || p.colorID !== player || frozen.has(`${row},${col}`)) return new Set();
   const moves = new Set();
   for (const [dr, dc] of DIRS) {
     const nr = row + dr, nc = col + dc;
@@ -65,7 +65,7 @@ export function getPushableEnemies(board, row, col, frozen) {
     const nr = row + dr, nc = col + dc;
     if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
     const adj = board[nr][nc];
-    if (adj && adj.color !== p.color && STRENGTH[p.type] > STRENGTH[adj.type]) {
+    if (adj && adj.colorID !== p.colorID && STRENGTH[p.type] > STRENGTH[adj.type]) {
       if (getPushDests(board, nr, nc, row, col).size > 0) result.add(`${nr},${nc}`);
     }
   }
@@ -94,7 +94,7 @@ export function getPullables(board, fromRow, fromCol, toRow, toCol, player) {
     if (nr === toRow && nc === toCol) continue;
     if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
     const adj = board[nr][nc];
-    if (adj && adj.color !== player && STRENGTH[mover.type] > STRENGTH[adj.type]) {
+    if (adj && adj.colorID !== player && STRENGTH[mover.type] > STRENGTH[adj.type]) {
       result.add(`${nr},${nc}`);
     }
   }
@@ -109,7 +109,7 @@ export function applyTraps(board) {
     if (!p) continue;
     const safe = DIRS.some(([dr, dc]) => {
       const nr = tr + dr, nc = tc + dc;
-      return nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && next[nr][nc]?.color === p.color;
+      return nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && next[nr][nc]?.colorID === p.colorID;
     });
     if (!safe) next[tr][tc] = null;
   }
@@ -122,7 +122,7 @@ export function hasAnyMove(board, currPlayer) {
   for (let r = 0; r < 8; r++)
     for (let c = 0; c < 8; c++) {
       const p = board[r][c];
-      if (!p || p.color !== currPlayer) continue;
+      if (!p || p.colorID !== currPlayer) continue;
       if (getValidMoves(board, r, c, currPlayer, frozen).size > 0) return true;
       if (getPushableEnemies(board, r, c, frozen).size > 0) return true;
     }
@@ -136,12 +136,12 @@ export function checkWinner(board, currPlayer) {
   // A rabbit of `color` standing on that color's goal row (gold → row 0, silver → row 7)
   const atGoal = (color) => {
     const goalRow = color === 'Au' ? 0 : 7;
-    return board[goalRow].some(p => p?.color === color && p.type === 'R');
+    return board[goalRow].some(p => p?.colorID === color && p.type === 'R');
   };
 
   // Count the number of rabbits of a given color
   const rabbitCount = (color) =>
-    board.flat().filter(p => p?.color === color && p.type === 'R').length;
+    board.flat().filter(p => p?.colorID === color && p.type === 'R').length;
 
   // If a rabbit is at the end of the board, return winner
   if (atGoal(currPlayer)) return currPlayer;
@@ -156,5 +156,5 @@ export function checkWinner(board, currPlayer) {
 
 // Serialize board + player to move into a compact string for repetition detection
 export function serializePosition(board, player) {
-  return board.map(row => row.map(p => p ? `${p.color[0]}${p.type}` : '.').join('')).join('/') + '|' + player;
+  return board.map(row => row.map(p => p ? `${p.colorID[1]}${p.type}` : '.').join('')).join('/') + '|' + player;
 }

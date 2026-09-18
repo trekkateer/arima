@@ -236,7 +236,7 @@ export function useGameState() {
     }
 
     const piece = board[row][col];
-    if (ownZone && piece?.color === setupPhase) {
+    if (ownZone && piece?.colorID === setupPhase) {
       setSetupSelected({ row, col });
     }
   }
@@ -346,7 +346,7 @@ export function useGameState() {
 
     // Select own unfrozen piece
     const piece = board[row][col];
-    if (piece?.color === player && !frozen.has(cell)) {
+    if (piece?.colorID === player && !frozen.has(cell)) {
       if (selected?.row === row && selected?.col === col) {
         setSelected(null);
         setValidMoves(new Set());

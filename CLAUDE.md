@@ -13,6 +13,8 @@ npm test           # Jest + React Testing Library (watch mode)
 npm test -- --testPathPattern=<file>  # run a single test file
 ```
 
+There are currently no test files, and `src/setupTests.js` was removed — a new test file must `import '@testing-library/jest-dom'` itself to use matchers like `toBeInTheDocument`.
+
 ## Architecture
 
 **Create React App** (react-scripts 5, React 19), React Router DOM v7, FontAwesome icons. No backend.
@@ -38,11 +40,18 @@ All game rules are **pure functions** with no React state — import and call fr
 | `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                                                     |
 | `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled                               |
 | `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board                                    |
-| `checkWinner(board, mover)`                                       | Goal/elimination winner:`'Au'`, `'Ag'`, or `null`. Only valid on a turn's *final* position |
+| `checkWinner(board, currPlayer)`                                  | Goal/elimination winner:`'Au'`, `'Ag'`, or `null`. Only valid on a turn's *final* position |
 | `serializePosition(board, player)`                                | Compact string for repetition detection                                                          |
 | `hasAnyMove(board, player)`                                       | Immobilization check                                                                             |
 
-**Board layout:** `board[row][col]`, row 0 = top (silver home), row 7 = bottom (gold home). Each cell is `null` or `{ id, type, color }` where `type` is one of `E M H D C R` (Elephant → Rabbit, strongest → weakest). Cells are addressed throughout as the string `"row,col"` stored in `Set`s.
+**Board layout:** `board[row][col]`, row 0 = top (silver home), row 7 = bottom (gold home). Each cell is `null` or `{ id, type, colorID, color }` where `type` is one of `E M H D C R` (Elephant → Rabbit, strongest → weakest). Cells are addressed throughout as the string `"row,col"` stored in `Set`s.
+
+**Colors** have two forms on each piece:
+
+- `colorID` — `'Au'` (gold) or `'Ag'` (silver). Used for all game logic, and is the same value as `player`, `setupPhase`, `winner`, `checkWinner`'s return value, and the keys of `HOME_ROWS` and `MoveHistoryPanel`'s rows. Always compare against this.
+- `color` — `'gold'` or `'silver'`. Display only: the `pc-gold`/`pc-silver` CSS classes and the piece tooltip in `Board`.
+
+Values like `player`/`setupPhase`/`winner` have no piece to read `.color` from, so UI text maps them by hand (e.g. the `Play.js` header shows `'Au' → Gold`). The `GameControls` setup/winner banners still show `'Au'`/`'Ag'` directly.
 
 **Traps** at rows/cols `(2,2) (2,5) (5,2) (5,5)`. A piece on a trap with no same-color neighbor is captured by `applyTraps`.
 
@@ -60,6 +69,7 @@ The core turn engine — board state, undo/redo history, setup phase, push/pull,
 - `selected` — `{ row, col }` of the piece the current player has clicked
 - `validMoves` — `Set<"row,col">` for the selected piece
 - `player` — `'Au'` | `'Ag'`
+- `setupPhase` — `'Au'` | `'Ag'` while that side arranges pieces, `null` once play starts
 - `currMove` — steps used this turn (0–4); auto-ends turn at 4
 - `pushPhase` — `null` | `{ type:'push_dest', pusher, pushee, dests }` | `{ type:'pull_choice', from, pullables }`
 - `moveHistory` — array of board snapshots indexed by `currMove` (supports undo/redo within a turn)

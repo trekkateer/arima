@@ -59,7 +59,7 @@ export default function Board({
             const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
             const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
             const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
-            const isSetupLocked = setupPhase && piece && piece.color !== setupPhase;
+            const isSetupLocked = setupPhase && piece && piece.colorID !== setupPhase;
             const isDragging = dragging?.row === r && dragging?.col === c;
 
             return (<div className={[
@@ -90,8 +90,8 @@ export default function Board({
                 <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
                   title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
                   style={{ cursor: setupPhase
-                    ? (piece.color === setupPhase ? 'grab' : 'default')
-                    : (piece.color === player && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
+                    ? (piece.colorID === setupPhase ? 'grab' : 'default')
+                    : (piece.colorID === player && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
                   onPointerDown={(e) => onPiecePointerDown(e, r, c)}
                 >
                   {PIECE_EMOJI[piece.type]}

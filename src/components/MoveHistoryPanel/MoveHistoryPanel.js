@@ -12,7 +12,7 @@ export default function MoveHistoryPanel({ gameLog, turnNotes, currMove, winner,
     }
     const rows = [];
     for (let i = 0; i < logEntries.length; i += 2) {
-      rows.push({ turnNum: Math.floor(i / 2) + 1, gold: logEntries[i], silver: logEntries[i + 1] });
+      rows.push({ turnNum: Math.floor(i / 2) + 1, Au: logEntries[i], Ag: logEntries[i + 1] });
     }
     return rows;
   }, [gameLog, turnNotes, currMove, winner, player]);
@@ -30,14 +30,14 @@ export default function MoveHistoryPanel({ gameLog, turnNotes, currMove, winner,
         <span className="mh-col-label mh-silver">Silver</span>
       </div>
       <div className="move-log" ref={logRef}>
-        {logRows.map(({ turnNum, gold, silver }) => (
+        {logRows.map(({ turnNum, Au, Ag }) => (
           <div key={turnNum} className="log-row">
             <span className="log-num">{turnNum}.</span>
-            <span className={`log-steps log-gold${gold?.inProgress ? ' log-in-progress' : ''}`}>
-              {gold?.steps?.join(' ')}
+            <span className={`log-steps log-gold${Au?.inProgress ? ' log-in-progress' : ''}`}>
+              {Au?.steps?.join(' ')}
             </span>
-            <span className={`log-steps log-silver${silver?.inProgress ? ' log-in-progress' : ''}`}>
-              {silver?.steps?.join(' ')}
+            <span className={`log-steps log-silver${Ag?.inProgress ? ' log-in-progress' : ''}`}>
+              {Ag?.steps?.join(' ')}
             </span>
           </div>
         ))}

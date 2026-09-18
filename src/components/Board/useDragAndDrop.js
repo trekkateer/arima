@@ -37,13 +37,13 @@ export function useDragAndDrop({
   function onPiecePointerDown(e, row, col) {
     const piece = board[row][col];
     if (setupPhase) {
-      if (!piece || piece.color !== setupPhase || !HOME_ROWS[setupPhase].includes(row)) return;
+      if (!piece || piece.colorID !== setupPhase || !HOME_ROWS[setupPhase].includes(row)) return;
       dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
       return;
     }
     // stepsExhausted: turn was refused as an illegal pass, so nothing but undo works
     if (winner || pushPhase || stepsExhausted) return;
-    if (!piece || piece.color !== player || frozen.has(`${row},${col}`)) return;
+    if (!piece || piece.colorID !== player || frozen.has(`${row},${col}`)) return;
     dragStartPos.current = { x: e.clientX, y: e.clientY, row, col };
   }
 

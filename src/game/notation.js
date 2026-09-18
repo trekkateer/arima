@@ -9,14 +9,14 @@ export function toDir(fr, fc, tr, tc) {
   return 'w';
 }
 // Gold pieces uppercase, silver lowercase (official Arimaa convention)
-export function pieceChar(piece) { return piece.color === 'Au' ? piece.type : piece.type.toLowerCase(); }
+export function pieceChar(piece) { return piece.colorID === 'Au' ? piece.type : piece.type.toLowerCase(); }
 export function stepNote(piece, fr, fc, tr, tc) {
   return pieceChar(piece) + toSquare(fr, fc) + toDir(fr, fc, tr, tc);
 }
 export function capNote(piece, r, c) { return pieceChar(piece) + toSquare(r, c) + 'x'; }
 
 // Home rows each color may rearrange pieces within during setup
-export const HOME_ROWS = { gold: [6, 7], silver: [0, 1] };
+export const HOME_ROWS = { Au: [6, 7], Ag: [0, 1] };
 
 // Returns pieces present in `before` but absent in `after` (trap captures)
 export function findCaptures(before, after) {
