@@ -49,13 +49,13 @@ export default function GameControls({
 
       {setupPhase && (
         <div className="setup-banner">
-          <span>{setupPhase === 'gold' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
+          <span>{setupPhase === 'Au' ? 'Au' : 'Ag'}: drag pieces within your own two rows to rearrange, then confirm.</span>
         </div>
       )}
 
       {winner && (
         <div className="winner-banner">
-          <span>{winner === 'gold' ? 'Gold' : 'Silver'} wins!</span>
+          <span>{winner === 'Au' ? 'Au' : 'Ag'} wins!</span>
           <button onClick={onReset}>Play Again</button>
         </div>
       )}

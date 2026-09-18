@@ -9,7 +9,7 @@ export function toDir(fr, fc, tr, tc) {
   return 'w';
 }
 // Gold pieces uppercase, silver lowercase (official Arimaa convention)
-export function pieceChar(piece) { return piece.color === 'gold' ? piece.type : piece.type.toLowerCase(); }
+export function pieceChar(piece) { return piece.color === 'Au' ? piece.type : piece.type.toLowerCase(); }
 export function stepNote(piece, fr, fc, tr, tc) {
   return pieceChar(piece) + toSquare(fr, fc) + toDir(fr, fc, tr, tc);
 }

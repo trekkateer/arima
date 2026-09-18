@@ -10,10 +10,10 @@ export const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
 // Creates the initial board state
 export function createInitialBoard() {
   const board = Array.from({ length: 8 }, () => Array(8).fill(null));
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], color: 'silver' }; });
-  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', color: 'silver' };
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], color: 'gold' }; });
-  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', color: 'gold' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], color: 'Ag' }; });
+  for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', color: 'Ag' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], color: 'Au' }; });
+  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', color: 'Au' };
   return board;
 }
 
@@ -48,8 +48,8 @@ export function getValidMoves(board, row, col, player, frozen) {
     const nr = row + dr, nc = col + dc;
     if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) continue;
     if (board[nr][nc]) continue;
-    if (p.type === 'R' && player === 'gold' && dr === 1) continue;
-    if (p.type === 'R' && player === 'silver' && dr === -1) continue;
+    if (p.type === 'R' && player === 'Au' && dr === 1) continue;
+    if (p.type === 'R' && player === 'Ag' && dr === -1) continue;
     moves.add(`${nr},${nc}`);
   }
   return moves;
@@ -116,45 +116,45 @@ export function applyTraps(board) {
   return next;
 }
 
-// Returns 'gold' if gold wins, 'silver' if silver wins, or null if no winner yet.
-// Only meaningful on the *final* position of a turn — Arimaa evaluates goal at the
-// end of a turn, so a rabbit that touches the goal row mid-turn and steps away has
-// not won. `mover` is the player who just finished their turn; the checks are
-// ordered so the mover wins any tie (e.g. a turn that sends both sides' rabbits
-// home, or one that clears the last rabbits off both sides).
-export function checkWinner(board, mover) {
-  const opponent = mover === 'gold' ? 'silver' : 'gold';
+// Returns true if the given player has at least one legal action (move or push)
+export function hasAnyMove(board, currPlayer) {
+  const frozen = computeFrozen(board);
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (!p || p.color !== currPlayer) continue;
+      if (getValidMoves(board, r, c, currPlayer, frozen).size > 0) return true;
+      if (getPushableEnemies(board, r, c, frozen).size > 0) return true;
+    }
+  return false;
+}
+
+// Returns 'Au' if gold wins, 'Ag' if silver wins, or null if no winner yet
+export function checkWinner(board, currPlayer) {
+  const opponent = currPlayer === 'Au' ? 'Ag' : 'Au';
 
   // A rabbit of `color` standing on that color's goal row (gold → row 0, silver → row 7)
   const atGoal = (color) => {
-    const goalRow = color === 'gold' ? 0 : 7;
+    const goalRow = color === 'Au' ? 0 : 7;
     return board[goalRow].some(p => p?.color === color && p.type === 'R');
   };
 
+  // Count the number of rabbits of a given color
   const rabbitCount = (color) =>
     board.flat().filter(p => p?.color === color && p.type === 'R').length;
 
-  if (atGoal(mover)) return mover;
-  if (atGoal(opponent)) return opponent;
-  if (rabbitCount(opponent) === 0) return mover;
-  if (rabbitCount(mover) === 0) return opponent;
+  // If a rabbit is at the end of the board, return winner
+  if (atGoal(currPlayer)) return currPlayer;
+  else if (atGoal(opponent)) return opponent;
+
+  // If the opponent has no rabbits left, return winner
+  if (rabbitCount(opponent) === 0) return currPlayer;
+  else if (rabbitCount(currPlayer) === 0) return opponent;
+
   return null;
 }
 
 // Serialize board + player to move into a compact string for repetition detection
 export function serializePosition(board, player) {
   return board.map(row => row.map(p => p ? `${p.color[0]}${p.type}` : '.').join('')).join('/') + '|' + player;
-}
-
-// Returns true if the given player has at least one legal action (move or push)
-export function hasAnyMove(board, player) {
-  const frozen = computeFrozen(board);
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      if (!p || p.color !== player) continue;
-      if (getValidMoves(board, r, c, player, frozen).size > 0) return true;
-      if (getPushableEnemies(board, r, c, frozen).size > 0) return true;
-    }
-  return false;
 }

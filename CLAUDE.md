@@ -38,7 +38,7 @@ All game rules are **pure functions** with no React state — import and call fr
 | `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                                                     |
 | `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled                               |
 | `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board                                    |
-| `checkWinner(board, mover)`                                       | Goal/elimination winner:`'gold'`, `'silver'`, or `null`. Only valid on a turn's *final* position |
+| `checkWinner(board, mover)`                                       | Goal/elimination winner:`'Au'`, `'Ag'`, or `null`. Only valid on a turn's *final* position |
 | `serializePosition(board, player)`                                | Compact string for repetition detection                                                          |
 | `hasAnyMove(board, player)`                                       | Immobilization check                                                                             |
 
@@ -59,7 +59,7 @@ The core turn engine — board state, undo/redo history, setup phase, push/pull,
 - `board` — current board
 - `selected` — `{ row, col }` of the piece the current player has clicked
 - `validMoves` — `Set<"row,col">` for the selected piece
-- `player` — `'gold'` | `'silver'`
+- `player` — `'Au'` | `'Ag'`
 - `currMove` — steps used this turn (0–4); auto-ends turn at 4
 - `pushPhase` — `null` | `{ type:'push_dest', pusher, pushee, dests }` | `{ type:'pull_choice', from, pullables }`
 - `moveHistory` — array of board snapshots indexed by `currMove` (supports undo/redo within a turn)

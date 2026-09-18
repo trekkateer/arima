@@ -22,11 +22,11 @@ export function useGameState() {
   const [board, setBoard] = useState(createInitialBoard);
   const [selected, setSelected] = useState(null);
   const [validMoves, setValidMoves] = useState(new Set());
-  const [player, setPlayer] = useState('gold');
+  const [player, setPlayer] = useState('Au');
   const [currMove, setCurrMove] = useState(0);
   const [winner, setWinner] = useState(null);
   const [pushPhase, setPushPhase] = useState(null);
-  const [setupPhase, setSetupPhase] = useState('gold');
+  const [setupPhase, setSetupPhase] = useState('Au');
   const [setupSelected, setSetupSelected] = useState(null);
 
   // Returns a set of "frozen" squares
@@ -35,7 +35,7 @@ export function useGameState() {
   // Move history and position log
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
   const [halfPushSteps, setHalfPushSteps] = useState(new Set());
-  const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'gold')]);
+  const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'Au')]);
 
   // Completed turns: each entry is { player, steps: string[] }. Gold always goes first.
   const [gameLog, setGameLog] = useState([]);
@@ -75,7 +75,7 @@ export function useGameState() {
   // immobilization, then switches players.
   // stepStrings: flat array of all notation strings for this turn, ready to store.
   function completeTurn(newBoard, stepStrings) {
-    const nextPlayer = player === 'gold' ? 'silver' : 'gold';
+    const nextPlayer = player === 'Au' ? 'Ag' : 'Au';
 
     setPushPhase(null);
     setSelected(null);
@@ -91,17 +91,17 @@ export function useGameState() {
       return;
     }
 
+    // Current player caused a 3rd repetition — they lose
     const posKey = serializePosition(newBoard, nextPlayer);
     const occurrences = positionLog.filter(k => k === posKey).length;
-
     if (occurrences >= 2) {
-      // Current player caused a 3rd repetition — they lose
       setWinner(nextPlayer);
       return;
     }
 
     const newLog = [...positionLog, posKey];
 
+    // Checks for immobilization
     if (!hasAnyMove(newBoard, nextPlayer)) {
       // Next player is immobilized — they lose
       setWinner(player);
@@ -258,15 +258,15 @@ export function useGameState() {
   // Advances from gold's setup to silver's, then from silver's setup into turn 1
   function confirmSetup() {
     setSetupSelected(null);
-    if (setupPhase === 'gold') {
-      setSetupPhase('silver');
+    if (setupPhase === 'Au') {
+      setSetupPhase('Ag');
     } else {
       const finalBoard = cloneBoard(board);
       setSetupPhase(null);
       setMoveHistory([finalBoard]);
       setHalfPushSteps(new Set());
-      setPositionLog([serializePosition(finalBoard, 'gold')]);
-      setPlayer('gold');
+      setPositionLog([serializePosition(finalBoard, 'Au')]);
+      setPlayer('Au');
       setCurrMove(0);
     }
     toast("Setup Confirmed!", { type: "info", duration: 3000 });
@@ -389,16 +389,16 @@ export function useGameState() {
     setBoard(initialBoard);
     setSelected(null);
     setValidMoves(new Set());
-    setPlayer('gold');
+    setPlayer('Au');
     setCurrMove(0);
     setWinner(null);
     setMoveHistory([cloneBoard(initialBoard)]);
     setHalfPushSteps(new Set());
-    setPositionLog([serializePosition(initialBoard, 'gold')]);
+    setPositionLog([serializePosition(initialBoard, 'Au')]);
     setPushPhase(null);
     setGameLog([]);
     setTurnNotes([]);
-    setSetupPhase('gold');
+    setSetupPhase('Au');
     setSetupSelected(null);
   }
 

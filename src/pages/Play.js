@@ -1,8 +1,8 @@
 import { useGameState } from '../game/useGameState';
-import Board from '../components/Board/Board.js';
-import GameControls from '../components/GameControls/GameControls.js';
-import MoveHistoryPanel from '../components/MoveHistoryPanel/MoveHistoryPanel.js';
-import RulesDropdown from '../components/RulesDropdown/RulesDropdown.js';
+import Board from '../components/Board/Board';
+import GameControls from '../components/GameControls/GameControls';
+import MoveHistoryPanel from '../components/MoveHistoryPanel/MoveHistoryPanel';
+import RulesDropdown from '../components/RulesDropdown/RulesDropdown';
 import './Play.css';
 
 export default function Play() {
@@ -15,13 +15,11 @@ export default function Play() {
       <title>Play Arima</title>
       <div className="play-page">
         <div className="play-header">
-          <h1 className="play-title"
-            onClick={() => window.location.href = '/'}
-          >
+          <h1 className="play-title" onClick={() => window.location.href = '/'}>
             Arima
           </h1>
           {g.setupPhase ? (
-            <div className="setup-status">Setup: {g.setupPhase === 'gold' ? 'Gold' : 'Silver'}</div>
+            <div className="setup-status">Setup: {g.setupPhase === 'Au' ? 'Au' : 'Ag'}</div>
           ) : (
             <div className="step-track">
               {[1,2,3,4].map(i => (
