@@ -1,11 +1,14 @@
-import { useGameState } from '../game/useGameState';
-import Board from '../components/Board/Board';
-import GameControls from '../components/GameControls/GameControls';
-import MoveHistoryPanel from '../components/MoveHistoryPanel/MoveHistoryPanel';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShareFromSquare } from '@fortawesome/free-solid-svg-icons';
 import './Play.css';
+
+// Game components
+import PlayerInfo from '../components/PlayerInfo/PlayerInfo';
+import Board from '../components/Board/Board';
+import GameControls from '../components/GameControls/GameControls';
+import MoveHistoryPanel from '../components/MoveHistoryPanel/MoveHistoryPanel';
+import { useGameState } from '../game/useGameState';
 
 export default function Play() {
   // Core turn engine (board, moves, undo/redo, setup). Drag-and-drop and move-log
@@ -66,6 +69,12 @@ export default function Play() {
             justifyContent: 'center',
             width: 'fit-content',
           }}>
+            <PlayerInfo
+              g={g}
+              player={g.players.Ag}
+              currPlayer={g.currPlayer}
+              position="top"
+            />
             <Board
               board={g.board}
               selected={g.selected}
@@ -75,7 +84,7 @@ export default function Play() {
               pushableEnemies={g.pushableEnemies}
               setupPhase={g.setupPhase}
               setupSelected={g.setupSelected}
-              player={g.player}
+              currPlayer={g.currPlayer}
               winner={g.winner}
               stepsExhausted={g.stepsExhausted}
               onMove={g.handleClick}
@@ -83,27 +92,38 @@ export default function Play() {
               setValidMoves={g.setValidMoves}
               setSetupSelected={g.setSetupSelected}
             />
+            <PlayerInfo
+              g={g}
+              player={g.players.Au}
+              currPlayer={g.currPlayer}
+              position="bottom"
+            />
           </main>
 
+          {/* Stretches to .game-core's height; `contain: size` stops the
+              panel's own content from growing .game-container, so the move
+              log scrolls instead */}
           <div className="side-panel" style={{
             display: 'flex',
             flexDirection: 'column',
-            width: '350px', height: '556px',
+            width: '350px',
             flex: '1 1 auto',
+            alignSelf: 'stretch',
+            contain: 'size',
           }}>
             <MoveHistoryPanel
               gameLog={g.gameLog}
               turnNotes={g.turnNotes}
               currMove={g.currMove}
               winner={g.winner}
-              player={g.player}
+              currPlayer={g.currPlayer}
             />
 
             <GameControls
               setupPhase={g.setupPhase}
               currMove={g.currMove}
               winner={g.winner}
-              player={g.player}
+              currPlayer={g.currPlayer}
               onRandomize={g.randomizeSetup}
               onConfirmSetup={g.confirmSetup}
               canEndTurn={g.canEndTurn}

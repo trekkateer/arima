@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { toast } from '../components/Toast/Toast';
+
+// Imports components
 import {
   createInitialBoard, computeFrozen, getValidMoves,
   getPushableEnemies, getPushDests, getPullables,
   applyTraps, checkWinner, serializePosition, hasAnyMove
 } from './arima';
 import { HOME_ROWS, stepNote, capNote, findCaptures } from './notation';
+import { createPlayer } from './players';
 
 // Deep clone a board so mutations don't affect the original
 function cloneBoard(b) {
@@ -22,12 +25,16 @@ export function useGameState() {
   const [board, setBoard] = useState(createInitialBoard);
   const [selected, setSelected] = useState(null);
   const [validMoves, setValidMoves] = useState(new Set());
-  const [player, setPlayer] = useState('Au');
   const [currMove, setCurrMove] = useState(0);
   const [winner, setWinner] = useState(null);
   const [pushPhase, setPushPhase] = useState(null);
   const [setupPhase, setSetupPhase] = useState('Au');
   const [setupSelected, setSetupSelected] = useState(null);
+
+  // Creates Players
+  const [players, setPlayers] = useState(() => ({ Au: createPlayer("Au"), Ag: createPlayer("Ag") }));
+  // Whose turn it is. Stays a plain colorID so game logic never touches the player objects
+  const [currPlayer, setCurrPlayer] = useState('Au');
 
   // Returns a set of "frozen" squares
   const frozen = computeFrozen(board);
@@ -68,24 +75,24 @@ export function useGameState() {
   // position at the start of it. moveHistory[0] is always the turn-start snapshot
   // (undo/redo slice the tail but never index 0), so that's what we compare against.
   function positionUnchanged(newBoard, turnStartBoard) {
-    return serializePosition(newBoard, player) === serializePosition(turnStartBoard, player);
+    return serializePosition(newBoard, currPlayer) === serializePosition(turnStartBoard, currPlayer);
   }
 
   // Called whenever a full turn ends. Checks goal/elimination, then repetition and
   // immobilization, then switches players.
   // stepStrings: flat array of all notation strings for this turn, ready to store.
   function completeTurn(newBoard, stepStrings) {
-    const nextPlayer = player === 'Au' ? 'Ag' : 'Au';
+    const nextPlayer = currPlayer === 'Au' ? 'Ag' : 'Au';
 
     setPushPhase(null);
     setSelected(null);
     setValidMoves(new Set());
-    setGameLog(prev => [...prev, { player, steps: stepStrings }]);
+    setGameLog(prev => [...prev, { player: currPlayer, steps: stepStrings }]);
     setTurnNotes([]);
     setHalfPushSteps(new Set());
 
     // Goal and elimination are judged on the final position of the turn, not per step
-    const newWinner = checkWinner(newBoard, player);
+    const newWinner = checkWinner(newBoard, currPlayer);
     if (newWinner) {
       setWinner(newWinner);
       return;
@@ -104,13 +111,13 @@ export function useGameState() {
     // Checks for immobilization
     if (!hasAnyMove(newBoard, nextPlayer)) {
       // Next player is immobilized — they lose
-      setWinner(player);
+      setWinner(currPlayer);
       setPositionLog(newLog);
       return;
     }
 
     setPositionLog(newLog);
-    setPlayer(nextPlayer);
+    setCurrPlayer(nextPlayer);
     setCurrMove(0);
     setMoveHistory([cloneBoard(newBoard)]);
   }
@@ -186,7 +193,7 @@ export function useGameState() {
       if (finBoard[pushee.row][pushee.col]) {
         const afterFrozen = computeFrozen(finBoard);
         setSelected({ row: pushee.row, col: pushee.col });
-        setValidMoves(getValidMoves(finBoard, pushee.row, pushee.col, player, afterFrozen));
+        setValidMoves(getValidMoves(finBoard, pushee.row, pushee.col, currPlayer, afterFrozen));
       } else {
         setSelected(null);
         setValidMoves(new Set());
@@ -266,7 +273,7 @@ export function useGameState() {
       setMoveHistory([finalBoard]);
       setHalfPushSteps(new Set());
       setPositionLog([serializePosition(finalBoard, 'Au')]);
-      setPlayer('Au');
+      setCurrPlayer('Au');
       setCurrMove(0);
     }
     toast("Setup Confirmed!", { type: "info", duration: 3000 });
@@ -290,7 +297,7 @@ export function useGameState() {
         // Cancel — restore pusher selection
         setPushPhase(null);
         setSelected(pushPhase.pusher);
-        setValidMoves(getValidMoves(board, pushPhase.pusher.row, pushPhase.pusher.col, player, frozen));
+        setValidMoves(getValidMoves(board, pushPhase.pusher.row, pushPhase.pusher.col, currPlayer, frozen));
       }
       return;
     }
@@ -325,7 +332,7 @@ export function useGameState() {
       finalizeStep(afterTraps, newTurnNotes, currMove + 1, nextHistory, () => {
         // Offer pull if mover survived and a weaker enemy was adjacent to origin
         const pullables = afterTraps[row][col]
-          ? getPullables(board, fromRow, fromCol, row, col, player)
+          ? getPullables(board, fromRow, fromCol, row, col, currPlayer)
           : new Set();
 
         if (pullables.size > 0) {
@@ -335,7 +342,7 @@ export function useGameState() {
         } else if (afterTraps[row][col]) {
           const afterFrozen = computeFrozen(afterTraps);
           setSelected({ row, col });
-          setValidMoves(getValidMoves(afterTraps, row, col, player, afterFrozen));
+          setValidMoves(getValidMoves(afterTraps, row, col, currPlayer, afterFrozen));
         } else {
           setSelected(null);
           setValidMoves(new Set());
@@ -346,13 +353,13 @@ export function useGameState() {
 
     // Select own unfrozen piece
     const piece = board[row][col];
-    if (piece?.colorID === player && !frozen.has(cell)) {
+    if (piece?.colorID === currPlayer && !frozen.has(cell)) {
       if (selected?.row === row && selected?.col === col) {
         setSelected(null);
         setValidMoves(new Set());
       } else {
         setSelected({ row, col });
-        setValidMoves(getValidMoves(board, row, col, player, frozen));
+        setValidMoves(getValidMoves(board, row, col, currPlayer, frozen));
       }
       return;
     }
@@ -389,7 +396,7 @@ export function useGameState() {
     setBoard(initialBoard);
     setSelected(null);
     setValidMoves(new Set());
-    setPlayer('Au');
+    setCurrPlayer('Au');
     setCurrMove(0);
     setWinner(null);
     setMoveHistory([cloneBoard(initialBoard)]);
@@ -466,7 +473,7 @@ export function useGameState() {
   const stepsExhausted = !setupPhase && !winner && currMove >= 4;
 
   return {
-    board, selected, validMoves, frozen, player, currMove, winner, pushPhase,
+    board, selected, validMoves, frozen, currPlayer, players, currMove, winner, pushPhase,
     setupPhase, setupSelected, pushableEnemies, canEndTurn, stepsExhausted,
     gameLog, turnNotes, moveHistoryLength: moveHistory.length,
     setSelected, setValidMoves, setSetupSelected,

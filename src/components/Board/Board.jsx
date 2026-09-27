@@ -13,7 +13,7 @@ export default function Board({
   pushableEnemies,
   setupPhase,
   setupSelected,
-  player, winner,
+  currPlayer, winner,
   stepsExhausted,
   onMove,
   setSelected,
@@ -21,7 +21,7 @@ export default function Board({
   setSetupSelected,
 }) {
   const { dragging, dragPos, onPiecePointerDown, onSquareClick } = useDragAndDrop({
-    board, player, frozen, setupPhase, winner, pushPhase, stepsExhausted,
+    board, currPlayer, frozen, setupPhase, winner, pushPhase, stepsExhausted,
     setSelected, setValidMoves, setSetupSelected, onSquareClick: onMove,
   });
 
@@ -107,7 +107,7 @@ export default function Board({
                   title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
                   style={{ cursor: setupPhase
                     ? (piece.colorID === setupPhase ? 'grab' : 'default')
-                    : (piece.colorID === player && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
+                    : (piece.colorID === currPlayer && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
                   onPointerDown={(e) => onPiecePointerDown(e, r, c)}
                 >
                   {PIECE_EMOJI[piece.type]}

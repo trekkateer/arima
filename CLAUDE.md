@@ -23,9 +23,9 @@ There are currently no test files, and `src/setupTests.js` was removed — a new
 
 Three routes in `src/App.jsx`:
 
-- `/` → `src/pages/Home.js`
-- `/play` → `src/pages/Play.js`
-- `/rules` → `src/pages/Rules.js` (static rules reference; linked from the bottom of Play in a new tab so the game isn't lost)
+- `/` → `src/pages/Home.jsx`
+- `/play` → `src/pages/Play.jsx`
+- `/rules` → `src/pages/Rules.jsx` (static rules reference; linked from the bottom of Play in a new tab so the game isn't lost)
 
 ### Game logic (`src/game/arima.js`)
 
@@ -52,7 +52,7 @@ All game rules are **pure functions** with no React state — import and call fr
 - `colorID` — `'Au'` (gold) or `'Ag'` (silver). Used for all game logic, and is the same value as `player`, `setupPhase`, `winner`, `checkWinner`'s return value, and the keys of `HOME_ROWS` and `MoveHistoryPanel`'s rows. Always compare against this.
 - `color` — `'gold'` or `'silver'`. Display only: the `pc-gold`/`pc-silver` CSS classes and the piece tooltip in `Board`.
 
-Values like `player`/`setupPhase`/`winner` have no piece to read `.color` from, so UI text maps them by hand (e.g. the `Play.js` header shows `'Au' → Gold`). The `GameControls` setup/winner banners still show `'Au'`/`'Ag'` directly.
+Values like `player`/`setupPhase`/`winner` have no piece to read `.color` from, so UI text maps them by hand (e.g. the `Play.jsx` header shows `'Au' → Gold`). The `GameControls` setup/winner banners still show `'Au'`/`'Ag'` directly.
 
 **Traps** at rows/cols `(2,2) (2,5) (5,2) (5,5)`. A piece on a trap with no same-color neighbor is captured by `applyTraps`.
 
@@ -64,7 +64,7 @@ Pure functions for Arimaa step notation (`stepNote`, `capNote`, `toSquare`, `toD
 
 ### Game engine hook (`src/game/useGameState.js`)
 
-The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.js`. Play.js itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, and `MoveHistoryPanel` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.js`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
+The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.jsx`. Play.jsx itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, and `MoveHistoryPanel` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.jsx`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
 
 - `board` — current board
 - `selected` — `{ row, col }` of the piece the current player has clicked
@@ -87,13 +87,13 @@ The core turn engine — board state, undo/redo history, setup phase, push/pull,
 
 **Pull** is offered automatically after any normal move: if the mover survived and had a weaker enemy adjacent to its origin, those enemies highlight teal (`pushPhase.type = 'pull_choice'`). Clicking one calls `executePull`. Costs 2 steps total (1 for the move + 1 for the pull).
 
-**Drag and drop** (`src/components/Board/useDragAndDrop.js`) mirrors the click flow via global `pointermove`/`pointerup` listeners (not native HTML5 drag-and-drop): once the pointer moves >5px past `onPiecePointerDown`, the piece becomes "dragging" and follows the cursor; on release, `Board`'s `onSquareClick` fires `useGameState`'s `handleClick` on whatever square is under the pointer, and suppresses the click event that would otherwise follow on the source square. Drag is disabled during push/pull phases and when a winner exists. This hook is colocated with `Board` (rather than living in `useGameState`) since it's the only consumer; it takes `board`/`player`/`frozen`/`setupPhase`/`winner`/`pushPhase` plus the `setSelected`/`setValidMoves`/`setSetupSelected` setters and raw `handleClick` from `useGameState` as inputs.
+**Drag and drop** (`src/components/Board/useDragAndDrop.jsx`) mirrors the click flow via global `pointermove`/`pointerup` listeners (not native HTML5 drag-and-drop): once the pointer moves >5px past `onPiecePointerDown`, the piece becomes "dragging" and follows the cursor; on release, `Board`'s `onSquareClick` fires `useGameState`'s `handleClick` on whatever square is under the pointer, and suppresses the click event that would otherwise follow on the source square. Drag is disabled during push/pull phases and when a winner exists. This hook is colocated with `Board` (rather than living in `useGameState`) since it's the only consumer; it takes `board`/`player`/`frozen`/`setupPhase`/`winner`/`pushPhase` plus the `setSelected`/`setValidMoves`/`setSetupSelected` setters and raw `handleClick` from `useGameState` as inputs.
 
-**Move log** (`src/components/MoveHistoryPanel/MoveHistoryPanel.js`) builds its own display rows from the hook's raw `gameLog` (completed turns) and `turnNotes` (current in-progress turn) props, and owns its own auto-scroll ref — again colocated since only this component needs either.
+**Move log** (`src/components/MoveHistoryPanel/MoveHistoryPanel.jsx`) builds its own display rows from the hook's raw `gameLog` (completed turns) and `turnNotes` (current in-progress turn) props, and owns its own auto-scroll ref — again colocated since only this component needs either.
 
-### Toast notifications (`src/components/Toast/Toast.js`)
+### Toast notifications (`src/components/Toast/Toast.jsx`)
 
-Module-level queue, not React context — `toast(message, { type, duration })` can be called from anywhere (e.g. `useGameState`'s `confirmSetup`). The `<Toast />` component (default export) renders the queue and must be mounted once; it lives in `src/App.js` at the router level so it's available on every route.
+Module-level queue, not React context — `toast(message, { type, duration })` can be called from anywhere (e.g. `useGameState`'s `confirmSetup`). The `<Toast />` component (default export) renders the queue and must be mounted once; it lives in `src/App.jsx` at the router level so it's available on every route.
 
 ## Style
 
