@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from '../components/Toast/Toast.js';
+import { toast } from '../components/Toast/Toast';
 import {
   createInitialBoard, computeFrozen, getValidMoves,
   getPushableEnemies, getPushDests, getPullables,

@@ -1,5 +1,5 @@
-import { PIECE_NAMES, PIECE_EMOJI, TRAP_SET } from '../../game/arima';
-import { useDragAndDrop } from './useDragAndDrop.js';
+import { PIECE_NAMES, PIECE_EMOJI, TRAP_SET } from '../../game/arima.js';
+import { useDragAndDrop } from './useDragAndDrop.jsx';
 
 // Renders the 8x8 board grid plus the drag ghost that follows the cursor while dragging.
 // Selection/valid-move/push-phase state is computed by the caller and passed in as plain

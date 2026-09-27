@@ -49,7 +49,7 @@ export default function GameControls({
 
       {setupPhase && (
         <div className="setup-banner">
-          <span>{setupPhase === 'Au' ? 'Au' : 'Ag'}: drag pieces within your own two rows to rearrange, then confirm.</span>
+          <span>{setupPhase === 'Au' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
         </div>
       )}
 
