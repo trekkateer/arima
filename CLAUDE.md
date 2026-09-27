@@ -21,10 +21,11 @@ There are currently no test files, and `src/setupTests.js` was removed — a new
 
 ### Routing
 
-Two routes in `src/App.js`:
+Three routes in `src/App.jsx`:
 
 - `/` → `src/pages/Home.js`
 - `/play` → `src/pages/Play.js`
+- `/rules` → `src/pages/Rules.js` (static rules reference; linked from the bottom of Play in a new tab so the game isn't lost)
 
 ### Game logic (`src/game/arima.js`)
 
@@ -63,7 +64,7 @@ Pure functions for Arimaa step notation (`stepNote`, `capNote`, `toSquare`, `toD
 
 ### Game engine hook (`src/game/useGameState.js`)
 
-The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.js`. Play.js itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, `MoveHistoryPanel`, and `RulesDropdown` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.js`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
+The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.js`. Play.js itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, and `MoveHistoryPanel` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.js`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
 
 - `board` — current board
 - `selected` — `{ row, col }` of the piece the current player has clicked

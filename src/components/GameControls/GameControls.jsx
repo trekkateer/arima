@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleLeft, faCircleRight } from '@fortawesome/free-solid-svg-icons';
+import { faCircleLeft, faCircleRight, faShuffle, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 
 // Buttons below the board, plus the setup/winner banners. Swaps between the
 // setup toolbar (randomize/confirm) and the in-game toolbar (undo/redo/end turn).
@@ -11,11 +11,11 @@ export default function GameControls({
     <>
       {setupPhase ? (
         <div className="controls">
-          <button className="blue-btn" onClick={onRandomize}>
-            Randomize
+          <button className="blue-btn" onClick={onRandomize} title="Randomize setup">
+            <FontAwesomeIcon icon={faShuffle} />
           </button>
-          <button className="blue-btn" onClick={onConfirmSetup}>
-            Confirm Setup
+          <button className="blue-btn" onClick={onConfirmSetup} title="Confirm setup">
+            <FontAwesomeIcon icon={faCheckDouble} />
           </button>
           <button className="red-btn" onClick={onReset}>
             New Game
@@ -23,7 +23,7 @@ export default function GameControls({
         </div>
       ) : (
         <div className="controls">
-          <div className="move-controls">
+          <div className="move-controls" style={{ display: 'flex', gap: '6px' }}>
             <button className="btn-undo" onClick={onUndo}
               disabled={(currMove === 0 && !pushPhase) || !!winner}
             >
@@ -44,12 +44,6 @@ export default function GameControls({
           <button className="red-btn" onClick={onReset}>
             New Game
           </button>
-        </div>
-      )}
-
-      {setupPhase && (
-        <div className="setup-banner">
-          <span>{setupPhase === 'Au' ? 'Gold' : 'Silver'}: drag pieces within your own two rows to rearrange, then confirm.</span>
         </div>
       )}
 

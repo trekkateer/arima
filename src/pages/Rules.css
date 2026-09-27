@@ -1,0 +1,10 @@
+/* ── Play button ── */
+.rules-play-btn {
+  padding: 10px 36px;
+  background: #FFD700;
+  color: #1a1a2e;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.rules-play-btn:hover { background: #FFC200; }
