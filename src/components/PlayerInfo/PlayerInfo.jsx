@@ -30,7 +30,7 @@ export default function PlayerInfo({ g, player, currPlayer, position }) {
           letterSpacing: '1px',
         }}>Setup: {g.setupPhase === 'Au' ? 'Gold' : 'Silver'}</div>
       ) : (
-        <div className="step-track" style={{ display: 'flex', gap: '6px', height: "0.95rem", alignItems: 'center' }}>
+        <div className="step-pips" style={{ display: 'flex', gap: '6px', height: "0.95rem", alignItems: 'center' }}>
           {[1,2,3,4].map(i => (
             <div key={i} className={`step-pip ${i <= g.currMove ? 'pip-used' : ''}`} style={{
               width: '12px', height: '12px',
