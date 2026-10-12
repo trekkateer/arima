@@ -8,7 +8,7 @@ import { HOME_ROWS } from '../../game/notation';
 // `onSquareClick` is the raw click handler (useGameState's handleClick) — on drop, this
 // hook fires it on whatever square is under the pointer, same as a real click would.
 export function useDragAndDrop({
-  board, player, frozen, setupPhase, winner, pushPhase, stepsExhausted,
+  board, player, frozen, setupPhase, winner, pushPhase, stepsExhausted, locked,
   setSelected, setValidMoves, setSetupSelected, onSquareClick,
 }) {
   // Local state for the drag ghost and cursor-following position
@@ -35,6 +35,8 @@ export function useDragAndDrop({
   // Records where a drag began; the global pointermove handler starts the drag once
   // the pointer moves more than 5px (so normal clicks aren't affected).
   function onPiecePointerDown(e, row, col) {
+    // Online: not this client's turn/setup
+    if (locked) return;
     const piece = board[row][col];
     if (setupPhase) {
       if (!piece || piece.colorID !== setupPhase || !HOME_ROWS[setupPhase].includes(row)) return;

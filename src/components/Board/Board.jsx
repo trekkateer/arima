@@ -15,13 +15,14 @@ export default function Board({
   setupSelected,
   currPlayer, winner,
   stepsExhausted,
+  locked,
   onMove,
   setSelected,
   setValidMoves,
   setSetupSelected,
 }) {
   const { dragging, dragPos, onPiecePointerDown, onSquareClick } = useDragAndDrop({
-    board, currPlayer, frozen, setupPhase, winner, pushPhase, stepsExhausted,
+    board, currPlayer, frozen, setupPhase, winner, pushPhase, stepsExhausted, locked,
     setSelected, setValidMoves, setSetupSelected, onSquareClick: onMove,
   });
 
@@ -105,7 +106,7 @@ export default function Board({
               {piece && !isDragging ? (
                 <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
                   title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
-                  style={{ cursor: setupPhase
+                  style={{ cursor: locked ? 'default' : setupPhase
                     ? (piece.colorID === setupPhase ? 'grab' : 'default')
                     : (piece.colorID === currPlayer && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
                   onPointerDown={(e) => onPiecePointerDown(e, r, c)}

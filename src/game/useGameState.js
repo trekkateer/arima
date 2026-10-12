@@ -5,8 +5,10 @@ import { toast } from '../components/Toast/Toast';
 import {
   createInitialBoard, computeFrozen, getValidMoves,
   getPushableEnemies, getPushDests, getPullables,
-  applyTraps, checkWinner, serializePosition, hasAnyMove
+  applyTraps, serializePosition
 } from './arima';
+import { judgeTurnEnd } from './turn';
+import { useServer } from './useServer';
 import { HOME_ROWS, stepNote, capNote, findCaptures } from './notation';
 import { createPlayer } from './players';
 
@@ -20,7 +22,10 @@ function cloneBoard(b) {
 // (MoveHistoryPanel) live in those components instead, since only they need them.
 // Returns everything the Play page needs to render, plus the handlers it wires up
 // to Board/GameControls/MoveHistoryPanel.
-export function useGameState() {
+// With `online`, the server is authoritative: steps within a turn still play out
+// locally (so undo/redo stay instant), but finished turns and setups are sent to the
+// server, and the board is replaced by whatever `state` it broadcasts back.
+export function useGameState({ online = false } = {}) {
   // State variables
   const [board, setBoard] = useState(createInitialBoard);
   const [selected, setSelected] = useState(null);
@@ -50,6 +55,42 @@ export function useGameState() {
   // kept for redo, just like moveHistory. Index i holds notation for the move from
   // moveHistory[i] → moveHistory[i+1], as an array of step strings (1 move + captures).
   const [turnNotes, setTurnNotes] = useState([]);
+
+  // Online only: true between sending a turn/setup and the server's reply, so the
+  // player can't keep moving on a position the server hasn't accepted yet
+  const [awaiting, setAwaiting] = useState(false);
+  // Online only: which seats are filled, so we can say when the opponent is missing
+  const [seats, setSeats] = useState({ Au: false, Ag: false });
+  const server = useServer(online, handleServerMessage);
+
+  // Replaces all game state with the server's, discarding any in-progress local turn
+  function handleServerMessage(msg) {
+    if (msg.type === 'error') {
+      toast(msg.message, { type: 'error', duration: 4000 });
+      return;
+    }
+    if (msg.type !== 'state') return;
+    setBoard(msg.board);
+    setSetupPhase(msg.setupPhase);
+    setCurrPlayer(msg.currPlayer);
+    setWinner(msg.winner);
+    setGameLog(msg.gameLog);
+    setSeats(msg.seats);
+    setSelected(null);
+    setValidMoves(new Set());
+    setSetupSelected(null);
+    setPushPhase(null);
+    setCurrMove(0);
+    setMoveHistory([cloneBoard(msg.board)]);
+    setHalfPushSteps(new Set());
+    setTurnNotes([]);
+    setAwaiting(false);
+  }
+
+  // Whether this client may touch the board right now. Always true offline; online,
+  // only on our own setup/turn and not while the server is judging what we sent.
+  const canAct = !online ||
+    (server.status === 'connected' && !awaiting && server.color === (setupPhase ?? currPlayer));
 
   // Allows us to listen to the the entire document and CTRL-Z or CTRL-Y no matter what element is focused
   useEffect(() => {
@@ -87,36 +128,27 @@ export function useGameState() {
     setPushPhase(null);
     setSelected(null);
     setValidMoves(new Set());
+
+    // Online: the server validates the whole turn and judges it; its state broadcast
+    // (or error + state on rejection) resets everything else
+    if (online) {
+      server.send({ type: 'move', steps: stepStrings });
+      setAwaiting(true);
+      return;
+    }
+
     setGameLog(prev => [...prev, { player: currPlayer, steps: stepStrings }]);
     setTurnNotes([]);
     setHalfPushSteps(new Set());
 
-    // Goal and elimination are judged on the final position of the turn, not per step
-    const newWinner = checkWinner(newBoard, currPlayer);
+    // Goal/elimination, then repetition, then immobilization — shared with the server
+    const { winner: newWinner, positionLog: newLog } = judgeTurnEnd(newBoard, currPlayer, positionLog);
+    setPositionLog(newLog);
     if (newWinner) {
       setWinner(newWinner);
       return;
     }
 
-    // Current player caused a 3rd repetition — they lose
-    const posKey = serializePosition(newBoard, nextPlayer);
-    const occurrences = positionLog.filter(k => k === posKey).length;
-    if (occurrences >= 2) {
-      setWinner(nextPlayer);
-      return;
-    }
-
-    const newLog = [...positionLog, posKey];
-
-    // Checks for immobilization
-    if (!hasAnyMove(newBoard, nextPlayer)) {
-      // Next player is immobilized — they lose
-      setWinner(currPlayer);
-      setPositionLog(newLog);
-      return;
-    }
-
-    setPositionLog(newLog);
     setCurrPlayer(nextPlayer);
     setCurrMove(0);
     setMoveHistory([cloneBoard(newBoard)]);
@@ -250,6 +282,7 @@ export function useGameState() {
 
   // Shuffles the active setup player's 16 pieces randomly across their two home rows
   function randomizeSetup() {
+    if (!canAct) return;
     const squares = HOME_ROWS[setupPhase].flatMap(r => Array.from({ length: 8 }, (_, c) => [r, c]));
     const pieces = squares.map(([r, c]) => board[r][c]);
     for (let i = pieces.length - 1; i > 0; i--) {
@@ -265,6 +298,13 @@ export function useGameState() {
   // Advances from gold's setup to silver's, then from silver's setup into turn 1
   function confirmSetup() {
     setSetupSelected(null);
+    // Online: send our home rows as piece letters; the server advances the phase
+    if (online) {
+      if (!canAct) return;
+      server.send({ type: 'setup', rows: HOME_ROWS[setupPhase].map(r => board[r].map(p => p.type)) });
+      setAwaiting(true);
+      return;
+    }
     if (setupPhase === 'Au') {
       setSetupPhase('Ag');
     } else {
@@ -282,6 +322,8 @@ export function useGameState() {
   // Single entry point for all board interactions (click and drag-drop). Dispatches
   // through push-dest → pull-choice → normal move → select piece → initiate push.
   function handleClick(row, col) {
+    // Online: not our turn/setup, or waiting on the server
+    if (!canAct) return;
     if (setupPhase) { handleSetupClick(row, col); return; }
     if (winner) return;
     // All 4 steps spent and the turn was refused as an illegal pass — undo is the
@@ -392,6 +434,11 @@ export function useGameState() {
 
   // Resets all game state back to the initial board position
   function resetGame() {
+    // Online: the server resets and broadcasts the fresh state to both players
+    if (online) {
+      server.send({ type: 'reset' });
+      return;
+    }
     const initialBoard = createInitialBoard();
     setBoard(initialBoard);
     setSelected(null);
@@ -410,6 +457,8 @@ export function useGameState() {
   }
 
   function undoMove() {
+    // Online: a sent turn is in the server's hands until it replies
+    if (!canAct) return;
     // Set push phase to null
     if (pushPhase?.type === 'push_dest') {
       // No board changes yet — just cancel push mode
@@ -438,6 +487,7 @@ export function useGameState() {
   }
 
   function redoMove() {
+    if (!canAct) return;
     // Set push phase to null
     setPushPhase(null);
 
@@ -476,6 +526,7 @@ export function useGameState() {
     board, selected, validMoves, frozen, currPlayer, players, currMove, winner, pushPhase,
     setupPhase, setupSelected, pushableEnemies, canEndTurn, stepsExhausted,
     gameLog, turnNotes, moveHistoryLength: moveHistory.length,
+    online, canAct, seats, myColor: server.color, connection: server.status,
     setSelected, setValidMoves, setSetupSelected,
     handleClick, undoMove, redoMove, endTurn, resetGame, randomizeSetup, confirmSetup,
   };

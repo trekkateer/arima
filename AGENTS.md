@@ -1,0 +1,112 @@
+# AGENTS.md
+
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+## Commands
+
+Don't use these unless I ask you to debug. In nearly every case it's faster for me to debug myself and it I get stuck I'll ask you.
+
+```bash
+npm start          # dev server (localhost:3000)
+npm run build      # production build
+npm run server     # game server (gold ws://localhost:3001, silver :3002), needed for /online
+npm test           # Jest + React Testing Library (watch mode)
+npm test -- --testPathPattern=<file>  # run a single test file
+```
+
+There are currently no test files, and `src/setupTests.js` was removed — a new test file must `import '@testing-library/jest-dom'` itself to use matchers like `toBeInTheDocument`.
+
+## Architecture
+
+**Create React App** (react-scripts 5, React 19), React Router DOM v7, FontAwesome icons. No backend.
+
+### Routing
+
+Three routes in `src/App.jsx`:
+
+- `/` → `src/pages/Home.jsx`
+- `/play` → `src/pages/Play.jsx`
+- `/online` → `Play` with `online` prop (plays through the game server, see below)
+- `/rules` → `src/pages/Rules.jsx` (static rules reference; linked from the bottom of Play in a new tab so the game isn't lost)
+
+### Game logic (`src/game/arima.js`)
+
+All game rules are **pure functions** with no React state — import and call freely. Key exports:
+
+
+| Export                                                            | Purpose                                                                                          |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `createInitialBoard()`                                            | Returns 8×8 board array                                                                         |
+| `computeFrozen(board)`                                            | Returns`Set<"row,col">` of frozen pieces                                                         |
+| `getValidMoves(board, row, col, player, frozen)`                  | Returns`Set<"row,col">` of legal destinations                                                    |
+| `getPushableEnemies(board, row, col, frozen)`                     | Weaker adjacent enemies the selected piece can push                                              |
+| `getPushDests(board, pusheeRow, pusheeCol, pusherRow, pusherCol)` | Where the pushee can be sent                                                                     |
+| `getPullables(board, fromRow, fromCol, toRow, toCol, player)`     | Enemies that were adjacent to the mover's origin and can be pulled                               |
+| `applyTraps(board)`                                               | Removes unprotected pieces on trap squares; returns new board                                    |
+| `checkWinner(board, currPlayer)`                                  | Goal/elimination winner:`'Au'`, `'Ag'`, or `null`. Only valid on a turn's *final* position |
+| `serializePosition(board, player)`                                | Compact string for repetition detection                                                          |
+| `hasAnyMove(board, player)`                                       | Immobilization check                                                                             |
+
+**Board layout:** `board[row][col]`, row 0 = top (silver home), row 7 = bottom (gold home). Each cell is `null` or `{ id, type, colorID, color }` where `type` is one of `E M H D C R` (Elephant → Rabbit, strongest → weakest). Cells are addressed throughout as the string `"row,col"` stored in `Set`s.
+
+**Colors** have two forms on each piece:
+
+- `colorID` — `'Au'` (gold) or `'Ag'` (silver). Used for all game logic, and is the same value as `player`, `setupPhase`, `winner`, `checkWinner`'s return value, and the keys of `HOME_ROWS` and `MoveHistoryPanel`'s rows. Always compare against this.
+- `color` — `'gold'` or `'silver'`. Display only: the `pc-gold`/`pc-silver` CSS classes and the piece tooltip in `Board`.
+
+Values like `player`/`setupPhase`/`winner` have no piece to read `.color` from, so UI text maps them by hand (e.g. the `Play.jsx` header shows `'Au' → Gold`). The `GameControls` setup/winner banners still show `'Au'`/`'Ag'` directly.
+
+**Traps** at rows/cols `(2,2) (2,5) (5,2) (5,5)`. A piece on a trap with no same-color neighbor is captured by `applyTraps`.
+
+**Strength order:** `E > M > H > D > C > R`. Rabbits cannot step backward (gold cannot move south, silver cannot move north).
+
+### Notation helpers (`src/game/notation.js`)
+
+Pure functions for Arimaa step notation (`stepNote`, `capNote`, `toSquare`, `toDir`, `pieceChar`), `HOME_ROWS`, and `findCaptures` (diffs two boards to find trap captures). Same no-React-state philosophy as `arima.js`.
+
+### Whole-turn rules (`src/game/turn.js`)
+
+Shared by client and server (the server imports it directly, so imports inside `src/game/{arima,notation,turn}.js` must keep their `.js` extension). `applyTurn(board, player, steps)` replays a turn of step notation and validates every step, including push/pull pairing; `judgeTurnEnd` does goal → repetition → immobilization (used by local `completeTurn` too); `applySetup` validates a side's home rows.
+
+### Game server (`server/`)
+
+Node + Express + `ws`, plain JS ESM (`server/package.json` sets `"type": "module"`). One in-memory `Game` (`server/Game.js`), one hardcoded room. Gold and silver listen on separate ports (3001/3002, `GOLD_PORT`/`SILVER_PORT`); the port decides the seat, and an extra socket on a filled port spectates. The client picks its port from `/online?side=gold|silver`. Protocol is documented at the top of `server/index.js`. The client sends a whole turn on End Turn (not per step) — steps, undo and redo stay local until then. `useServer` (`src/game/useServer.js`) owns the socket; in online mode `useGameState` sends `move`/`setup`/`reset` and replaces its state with each `state` broadcast. `canAct` gates the board when it isn't this client's turn.
+
+### Game engine hook (`src/game/useGameState.js`)
+
+The core turn engine — board state, undo/redo history, setup phase, push/pull, move notation — lives in one custom hook, `useGameState()`, called once from `src/pages/Play.jsx`. Play.jsx itself is just composition — it destructures the hook's return value and passes slices of it as props to `Board`, `GameControls`, and `MoveHistoryPanel` (all in `src/components/`, one folder per component, e.g. `src/components/Board/Board.jsx`). Logic that only one component needs lives in that component instead of the hook (see Drag and drop and Move log below). Key state variables inside the hook:
+
+- `board` — current board
+- `selected` — `{ row, col }` of the piece the current player has clicked
+- `validMoves` — `Set<"row,col">` for the selected piece
+- `player` — `'Au'` | `'Ag'`
+- `setupPhase` — `'Au'` | `'Ag'` while that side arranges pieces, `null` once play starts
+- `currMove` — steps used this turn (0–4); auto-ends turn at 4
+- `pushPhase` — `null` | `{ type:'push_dest', pusher, pushee, dests }` | `{ type:'pull_choice', from, pullables }`
+- `moveHistory` — array of board snapshots indexed by `currMove` (supports undo/redo within a turn)
+- `positionLog` — array of `serializePosition` strings across the whole game (repetition detection)
+
+**Turn flow:** `handleClick(row, col)` (returned by the hook and passed to `Board` as `onMove`) is the single entry point for both click and drag interactions. It dispatches through push-dest → pull-choice → execute-queued-move → select-piece → initiate-push. `applyTraps` runs after each step; win conditions do **not**. At step 4 (or on "End Turn"), `completeTurn` checks `checkWinner` (goal/elimination), then repetition, then immobilization, then flips `player` and resets `currMove`/`moveHistory`.
+
+**End-of-turn rules.** Two Arimaa rules apply to the turn as a whole, not to individual steps:
+
+- **Goal is judged on the final position only.** A rabbit that steps onto its goal row mid-turn and then moves (or is pulled) away has not won, so `checkWinner` is called from `completeTurn` rather than `finalizeStep`. It takes the player who just moved so ties resolve in the mover's favour, matching the official check order (mover's goal → opponent's goal → opponent eliminated → mover eliminated).
+- **No passing.** The position after a turn must differ from the position at its start (`moveHistory[0]`). `endTurn` refuses with a toast, and the `canEndTurn` flag disables the End Turn button. If all 4 steps are spent on an unchanged position, `finalizeStep` refuses to complete the turn and sets `stepsExhausted` — `handleClick` and drag both no-op until the player undoes a step.
+
+**Push** is a 2-click sequence: select own piece → click an orange-highlighted weaker enemy (sets `pushPhase.type = 'push_dest'`) → click a purple destination. Costs 2 steps via `executePush`, which pushes two snapshots onto `moveHistory` (pushee moved, then pusher followed). The middle one is an illegal position to stop on, so its index is recorded in `halfPushSteps` and `undoMove`/`redoMove` skip over it — a push undoes and redoes as one indivisible action.
+
+**Pull** is offered automatically after any normal move: if the mover survived and had a weaker enemy adjacent to its origin, those enemies highlight teal (`pushPhase.type = 'pull_choice'`). Clicking one calls `executePull`. Costs 2 steps total (1 for the move + 1 for the pull).
+
+**Drag and drop** (`src/components/Board/useDragAndDrop.jsx`) mirrors the click flow via global `pointermove`/`pointerup` listeners (not native HTML5 drag-and-drop): once the pointer moves >5px past `onPiecePointerDown`, the piece becomes "dragging" and follows the cursor; on release, `Board`'s `onSquareClick` fires `useGameState`'s `handleClick` on whatever square is under the pointer, and suppresses the click event that would otherwise follow on the source square. Drag is disabled during push/pull phases and when a winner exists. This hook is colocated with `Board` (rather than living in `useGameState`) since it's the only consumer; it takes `board`/`player`/`frozen`/`setupPhase`/`winner`/`pushPhase` plus the `setSelected`/`setValidMoves`/`setSetupSelected` setters and raw `handleClick` from `useGameState` as inputs.
+
+**Move log** (`src/components/MoveHistoryPanel/MoveHistoryPanel.jsx`) builds its own display rows from the hook's raw `gameLog` (completed turns) and `turnNotes` (current in-progress turn) props, and owns its own auto-scroll ref — again colocated since only this component needs either.
+
+### Toast notifications (`src/components/Toast/Toast.jsx`)
+
+Module-level queue, not React context — `toast(message, { type, duration })` can be called from anywhere (e.g. `useGameState`'s `confirmSetup`). The `<Toast />` component (default export) renders the queue and must be mounted once; it lives in `src/App.jsx` at the router level so it's available on every route.
+
+## Style
+
+### Comments
+
+Please write useful comments and do not delete comments even if you were not the one who wrote them. Comments should be short but descriptive. Remember to be concise.

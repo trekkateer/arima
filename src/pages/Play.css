@@ -36,6 +36,12 @@
 }
 
 /* ── Right side-panel ── */
+.online-status {
+  color: #aaa;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
 .mh-col-label {
   font-size: 0.72rem;
   font-weight: bold;

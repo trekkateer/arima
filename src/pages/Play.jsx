@@ -10,10 +10,23 @@ import GameControls from '../components/GameControls/GameControls';
 import MoveHistoryPanel from '../components/MoveHistoryPanel/MoveHistoryPanel';
 import { useGameState } from '../game/useGameState';
 
-export default function Play() {
+// `online` (the /online route) plays against the game server instead of hotseat
+export default function Play({ online = false }) {
   // Core turn engine (board, moves, undo/redo, setup). Drag-and-drop and move-log
   // formatting live in Board and MoveHistoryPanel, since only those need them.
-  const g = useGameState();
+  const g = useGameState({ online });
+
+  // Online status line under the title: connection, our seat, and whose move it is
+  let onlineStatus = null;
+  if (online) {
+    const name = c => (c === 'Au' ? 'Gold' : 'Silver');
+    const opp = g.myColor === 'Au' ? 'Ag' : 'Au';
+    if (g.connection !== 'connected') onlineStatus = g.connection === 'connecting' ? 'Connecting…' : 'Disconnected from server';
+    else if (!g.myColor) onlineStatus = 'Spectating';
+    else if (!g.seats[opp]) onlineStatus = `You are ${name(g.myColor)} — waiting for an opponent`;
+    else if (g.winner) onlineStatus = `You are ${name(g.myColor)}`;
+    else onlineStatus = `You are ${name(g.myColor)} — ${g.canAct ? 'your move' : "opponent's move"}`;
+  }
 
   return (
     <>
@@ -87,6 +100,7 @@ export default function Play() {
               currPlayer={g.currPlayer}
               winner={g.winner}
               stepsExhausted={g.stepsExhausted}
+              locked={!g.canAct}
               onMove={g.handleClick}
               setSelected={g.setSelected}
               setValidMoves={g.setValidMoves}
@@ -111,6 +125,10 @@ export default function Play() {
             alignSelf: 'stretch',
             contain: 'size',
           }}>
+            {onlineStatus && (
+              <div className="online-status">{onlineStatus}</div>
+            )}
+
             <MoveHistoryPanel
               gameLog={g.gameLog}
               turnNotes={g.turnNotes}

@@ -9,6 +9,7 @@ Don't use these unless I ask you to debug. In nearly every case it's faster for 
 ```bash
 npm start          # dev server (localhost:3000)
 npm run build      # production build
+npm run server     # game server (gold ws://localhost:3001, silver :3002), needed for /online
 npm test           # Jest + React Testing Library (watch mode)
 npm test -- --testPathPattern=<file>  # run a single test file
 ```
@@ -25,6 +26,7 @@ Three routes in `src/App.jsx`:
 
 - `/` → `src/pages/Home.jsx`
 - `/play` → `src/pages/Play.jsx`
+- `/online` → `Play` with `online` prop (plays through the game server, see below)
 - `/rules` → `src/pages/Rules.jsx` (static rules reference; linked from the bottom of Play in a new tab so the game isn't lost)
 
 ### Game logic (`src/game/arima.js`)
@@ -61,6 +63,14 @@ Values like `player`/`setupPhase`/`winner` have no piece to read `.color` from, 
 ### Notation helpers (`src/game/notation.js`)
 
 Pure functions for Arimaa step notation (`stepNote`, `capNote`, `toSquare`, `toDir`, `pieceChar`), `HOME_ROWS`, and `findCaptures` (diffs two boards to find trap captures). Same no-React-state philosophy as `arima.js`.
+
+### Whole-turn rules (`src/game/turn.js`)
+
+Shared by client and server (the server imports it directly, so imports inside `src/game/{arima,notation,turn}.js` must keep their `.js` extension). `applyTurn(board, player, steps)` replays a turn of step notation and validates every step, including push/pull pairing; `judgeTurnEnd` does goal → repetition → immobilization (used by local `completeTurn` too); `applySetup` validates a side's home rows.
+
+### Game server (`server/`)
+
+Node + Express + `ws`, plain JS ESM (`server/package.json` sets `"type": "module"`). One in-memory `Game` (`server/Game.js`), one hardcoded room. Gold and silver listen on separate ports (3001/3002, `GOLD_PORT`/`SILVER_PORT`); the port decides the seat, and an extra socket on a filled port spectates. The client picks its port from `/online?side=gold|silver`. Protocol is documented at the top of `server/index.js`. The client sends a whole turn on End Turn (not per step) — steps, undo and redo stay local until then. `useServer` (`src/game/useServer.js`) owns the socket; in online mode `useGameState` sends `move`/`setup`/`reset` and replaces its state with each `state` broadcast. `canAct` gates the board when it isn't this client's turn.
 
 ### Game engine hook (`src/game/useGameState.js`)
 
