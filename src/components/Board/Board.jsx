@@ -1,5 +1,6 @@
-import { PIECE_NAMES, PIECE_EMOJI, TRAP_SET } from '../../game/arima.js';
+import { PIECE_NAMES, TRAP_SET } from '../../game/arima.js';
 import { useDragAndDrop } from './useDragAndDrop.jsx';
+import { PIECE_IMAGES } from './pieceImages.js';
 
 // Renders the 8x8 board grid plus the drag ghost that follows the cursor while dragging.
 // Selection/valid-move/push-phase state is computed by the caller and passed in as plain
@@ -79,6 +80,10 @@ export default function Board({
             const isSetupLocked = setupPhase && piece?.colorID !== setupPhase;
             const isDragging = dragging?.row === r && dragging?.col === c;
 
+            // Gets the code for the SVG images
+            console.log(piece);
+            // const pieceImage = piece.type.toLowerCase() + piece.colorID === 'Au' ? 'g' : 's';
+
             return (<div className={[
                 'square',
                 isTrap ? 'sq-trap' : '',
@@ -111,7 +116,8 @@ export default function Board({
                     : (piece.colorID === currPlayer && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
                   onPointerDown={(e) => onPiecePointerDown(e, r, c)}
                 >
-                  {PIECE_EMOJI[piece.type]}
+                  {/* draggable={false} stops the browser's native image drag from hijacking our pointer drag */}
+                  <img src={`${process.env.PUBLIC_URL}/img/pieces/${PIECE_IMAGES[piece.colorID][piece.type]}.svg`} alt="" draggable={false} />
                 </div>
               ) : isTarget ? (
                 // Green dot on empty target squares
@@ -158,13 +164,11 @@ export default function Board({
           fontSize: '1rem',
           lineHeight: 1.4,
           textAlign: 'center',
-          pointerEvents: 'none',
-          userSelect: 'none',
           zIndex: 2,
         }}>
           <strong>{setupPhase === 'Au' ? 'Gold' : 'Silver'} setup</strong>
           <div style={{ fontSize: '0.9rem', marginTop: '4px' }}>
-            Drag pieces within your own two rows<br/>to rearrange, then confirm.
+            Drag pieces within your own two rows to rearrange, then confirm.
           </div>
         </div>
       )}
@@ -181,7 +185,7 @@ export default function Board({
           filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6))',
         }}>
           <div className={`piece pc-${board[dragging.row][dragging.col].color}`}>
-            {PIECE_EMOJI[board[dragging.row][dragging.col].type]}
+            <img src={`${process.env.PUBLIC_URL}/img/pieces/cg.svg`} alt="" draggable={false} />
           </div>
         </div>
       )}

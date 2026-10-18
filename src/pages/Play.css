@@ -163,24 +163,27 @@
 /* ── Pieces ── */
 .piece {
   width: calc(var(--sq) * 0.8125); height: calc(var(--sq) * 0.8125);
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(var(--sq) * 0.4);
   z-index: 2;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
-  border: 2px solid rgba(0, 0, 0, 0.15);
+  /* drop-shadow follows the SVG's outline, unlike box-shadow */
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
   user-select: none;
   touch-action: none;
+}
+/* Piece artwork scales to fit the piece box, preserving aspect ratio */
+.piece img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 .piece:active {
   cursor: grabbing !important;
 }
 
 .pc-frozen {
-  filter: grayscale(50%) brightness(0.7);
-  box-shadow: 0 0 0 2px #555 inset;
+  filter: grayscale(50%) brightness(0.7) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
   cursor: not-allowed !important;
 }
 
@@ -189,14 +192,7 @@
   cursor: pointer !important;
 }
 
-.pc-gold {
-  background: radial-gradient(circle at 35% 35%, #FFE566, #C8960C);
-  border-color: #8B6500;
-}
-.pc-silver {
-  background: radial-gradient(circle at 35% 35%, white, #A8A8A8);
-  border-color: #707070;
-}
+/* pc-gold / pc-silver are kept as color hooks; the SVG artwork carries the color itself */
 
 /* ── Winner banner ── */
 .winner-banner {
