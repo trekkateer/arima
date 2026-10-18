@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/arima/static/css/main.da8a4daf.css",
-    "main.js": "/arima/static/js/main.eebaa811.js",
+    "main.js": "/arima/static/js/main.aebec4bf.js",
     "index.html": "/arima/index.html",
     "main.da8a4daf.css.map": "/arima/static/css/main.da8a4daf.css.map",
-    "main.eebaa811.js.map": "/arima/static/js/main.eebaa811.js.map"
+    "main.aebec4bf.js.map": "/arima/static/js/main.aebec4bf.js.map"
   },
   "entrypoints": [
     "static/css/main.da8a4daf.css",
-    "static/js/main.eebaa811.js"
+    "static/js/main.aebec4bf.js"
   ]
 }
