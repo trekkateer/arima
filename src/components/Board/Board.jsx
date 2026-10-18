@@ -31,7 +31,7 @@ export default function Board({
       <div style={{ display: "flex" }}>
         <div className="corner" />
         {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(l => <div key={l} className="col-label" style={{
-          width: '64px',
+          width: 'var(--sq)',
           height: '20px',
           textAlign: 'center',
           lineHeight: '20px',
@@ -76,7 +76,7 @@ export default function Board({
             const isPushDest = pushPhase?.type === 'push_dest' && pushPhase.dests.has(key);
             const isPullable = pushPhase?.type === 'pull_choice' && pushPhase.pullables.has(key);
             const isSetupSel = setupPhase && setupSelected?.row === r && setupSelected?.col === c;
-            const isSetupLocked = setupPhase && piece && piece.colorID !== setupPhase;
+            const isSetupLocked = setupPhase && piece?.colorID !== setupPhase;
             const isDragging = dragging?.row === r && dragging?.col === c;
 
             return (<div className={[
@@ -105,7 +105,7 @@ export default function Board({
             >
               {piece && !isDragging ? (
                 <div className={`piece pc-${piece.color}${isFrozen ? ' pc-frozen' : ''}`}
-                  title={`${piece.color} ${PIECE_NAMES[piece.type]}${isFrozen ? ' (frozen)' : ''}`}
+                  title={`${piece.color} ${PIECE_NAMES[piece.type].toLowerCase()}${isFrozen ? ' (frozen)' : ''}${isPushable ? '\nready to push' : ''}${isPullable ? '\nready to pull' : ''}`}
                   style={{ cursor: locked ? 'default' : setupPhase
                     ? (piece.colorID === setupPhase ? 'grab' : 'default')
                     : (piece.colorID === currPlayer && !isFrozen && !winner && !pushPhase && !stepsExhausted ? 'grab' : 'default') }}
@@ -116,8 +116,8 @@ export default function Board({
               ) : isTarget ? (
                 // Green dot on empty target squares
                 <div className="move-hint" style={{
-                  width: '22px',
-                  height: '22px',
+                  width: 'calc(var(--sq) * 0.22)',
+                  height: 'calc(var(--sq) * 0.22)',
                   borderRadius: '50%',
                   background: 'rgba(60, 200, 60, 0.65)',
                   pointerEvents: 'none',
@@ -126,8 +126,8 @@ export default function Board({
               ) : isPushDest ? (
                 // Purple dot where the pushee can be sent
                 <div className="push-dest-hint" style={{
-                  width: '22px',
-                  height: '22px',
+                  width: 'calc(var(--sq) * 0.22)',
+                  height: 'calc(var(--sq) * 0.22)',
                   borderRadius: '50%',
                   background: 'rgba(160, 60, 220, 0.65)',
                   pointerEvents: 'none',
@@ -143,17 +143,16 @@ export default function Board({
       {/* Column labels at the bottom of the board */}
       <ColLabels />
 
-      {/* Setup hint over the empty middle rows (3–6). Click-through so it never blocks squares. */}
+      {/* Setup hint over the empty middle rows*/}
       {setupPhase && (
         <div className="setup-board-hint" style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '400px',
+          width: 'calc(var(--sq) * 6.25)',
           padding: '14px 20px',
           background: 'rgba(13, 13, 26, 0.78)',
-          border: `1px solid ${setupPhase === 'Au' ? 'rgba(255, 215, 0, 0.5)' : 'rgba(192, 192, 192, 0.5)'}`,
           borderRadius: '10px',
           color: setupPhase === 'Au' ? '#FFD700' : '#C0C0C0',
           fontSize: '1rem',
@@ -165,7 +164,7 @@ export default function Board({
         }}>
           <strong>{setupPhase === 'Au' ? 'Gold' : 'Silver'} setup</strong>
           <div style={{ fontSize: '0.9rem', marginTop: '4px' }}>
-            Drag pieces within your own two rows to rearrange, then confirm.
+            Drag pieces within your own two rows<br/>to rearrange, then confirm.
           </div>
         </div>
       )}

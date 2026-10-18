@@ -12,8 +12,6 @@ export default function PlayerInfo({ g, player, currPlayer, position }) {
       gap: '4px',
     }}>
       <div className="player-name" style={{
-        flex: 1,
-        textAlign: "left",
         color: player.colorID === 'Au' ? '#FFD700' : '#C0C0C0',
         fontSize: '1.1rem',
         fontWeight: 'bold',

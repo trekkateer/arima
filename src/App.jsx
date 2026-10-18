@@ -7,10 +7,11 @@ import './App.css';
 
 function App() {
   return (
-    <BrowserRouter>
+    // basename comes from "homepage" in package.json (e.g. /arima on GitHub Pages)
+    <BrowserRouter basename={process.env.PUBLIC_URL}>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/play" element={<Play />} />
+        <Route path="/pass-and-play" element={<Play />} />
         <Route path="/online" element={<Play online />} />
         <Route path="/rules" element={<Rules />} />
       </Routes>

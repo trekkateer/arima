@@ -1,0 +1,8 @@
+/* ── Rules link ── */
+.play-rules-link {
+  margin-top: 20px;
+  color: #aaa;
+  font-size: 0.95rem;
+  text-decoration: underline dashed;
+}
+.play-rules-link:hover { color: #FFD700; }

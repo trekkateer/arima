@@ -1,40 +1,3 @@
-/* ── Header ── */
-.back-link {
-  color: #aaa;
-  text-decoration: none;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-.back-link:hover { color: white; }
-
-/* ── Player bar ── */
-.player-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 6px 0;
-  height: 32px;
-}
-
-.player-chip {
-  padding: 4px 16px;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 0.95rem;
-  opacity: 0.5;
-  transition: opacity 0.2s;
-}
-.player-chip.chip-active { opacity: 1; }
-
-.gold-chip  { background: #FFD700; color: #3a2600; }
-.silver-chip { background: #C0C0C0; color: #1a1a1a; }
-
-.turn-text {
-  color: #88DD88;
-  font-size: 0.9rem;
-  font-style: italic;
-}
-
 /* ── Right side-panel ── */
 .online-status {
   color: #aaa;
@@ -90,7 +53,7 @@
 .blue-btn:hover:not(:disabled) { background: #3a80d2; }
 .blue-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
 
-.btn-undo {
+.btn-undo, .btn-redo {
   width: 20px; height: 26px;
   background: #888;
   color: white;
@@ -102,29 +65,30 @@
   font-weight: bold;
   transition: background 0.15s, transform 0.1s;
 }
-.btn-undo:hover:not(:disabled) { background: #777; }
-.btn-undo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
-
-.btn-redo {
-  width: 20px; height: 26px;
-  background: #888;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-family: Georgia, serif;
-  font-weight: bold;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-redo:hover:not(:disabled) { background: #777; }
-.btn-redo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
+.btn-undo:hover:not(:disabled), .btn-redo:hover:not(:disabled) { background: #777; }
+.btn-undo:disabled, .btn-redo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
 
 .red-btn {
   background: #D94040;
   color: black;
 }
 .red-btn:hover { background: #c03030; }
+
+/* ── Board sizing ──
+   --sq is the side of one square; everything on the board scales from it.
+   Fits the board to whichever viewport axis is tighter: the vertical budget
+   leaves ~300px for the header, player info, labels and rules link, the
+   horizontal one ~470px for the side panel, gap, row labels and padding. */
+.board-container {
+  --sq: clamp(32px, min((100vh - 300px) / 8, (100vw - 470px) / 8), 96px);
+}
+
+/* Narrow screens: the side panel can't fit beside the board, so size by width alone */
+@media (max-width: 800px) {
+  .board-container {
+    --sq: clamp(28px, (100vw - 90px) / 8, 96px);
+  }
+}
 
 /* ── Labels ── */
 .corner {
@@ -143,7 +107,7 @@
 
 /* ── Squares ── */
 .square {
-  width: 64px; height: 64px;
+  width: var(--sq); height: var(--sq);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -161,57 +125,35 @@
 .square.sq-trap::after {
   content: '✕';
   position: absolute;
-  font-size: 42px;
+  font-size: calc(var(--sq) * 0.65);
   color: red;
   pointer-events: none;
   line-height: 1;
 }
 
 /* Custom highlight states that a square can have */
-.sq-selected {
-  outline: 3px solid #4A90E2;
+.sq-selected, .sq-pushable, .sq-push-active, .sq-pullable, .sq-setup-selected {
   outline-offset: -3px;
 }
+.sq-selected { outline: 3px solid #4A90E2; }
 
-.sq-target {
+/* Clickable squares: legal moves and push/pull targets */
+.sq-target, .sq-pushable, .sq-push-dest, .sq-pullable {
   cursor: pointer;
 }
-.sq-target:hover { opacity: 0.85; }
+.sq-target:hover, .sq-pushable:hover, .sq-push-dest:hover, .sq-pullable:hover { opacity: 0.85; }
 
 /* Push & Pull indicators */
-.sq-pushable {
-  outline: 3px solid #FF8C00;
-  outline-offset: -3px;
-  cursor: pointer;
-}
-.sq-pushable:hover { opacity: 0.85; }
-
-.sq-push-active {
-  outline: 3px solid #FF4500;
-  outline-offset: -3px;
-}
-
-.sq-push-dest {
-  cursor: pointer;
-}
-.sq-push-dest:hover { opacity: 0.85; }
-
-.sq-pullable {
-  outline: 3px solid #20B2AA;
-  outline-offset: -3px;
-  cursor: pointer;
-}
-.sq-pullable:hover { opacity: 0.85; }
+.sq-pushable { outline: 3px solid #FF8C00; }
+.sq-push-active { outline: 3px solid #FF4500; }
+.sq-pullable { outline: 3px solid #20B2AA; }
 
 .sq-dragging {
   opacity: 0.4;
 }
 
 /* Setup phase: selected piece awaiting a swap target */
-.sq-setup-selected {
-  outline: 3px solid #FFD700;
-  outline-offset: -3px;
-}
+.sq-setup-selected { outline: 3px solid #FFD700; }
 
 /* Setup phase: opponent's pieces, not yet interactive */
 .sq-setup-locked {
@@ -220,22 +162,31 @@
 
 /* ── Pieces ── */
 .piece {
-  width: 52px; height: 52px;
+  width: calc(var(--sq) * 0.8125); height: calc(var(--sq) * 0.8125);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: calc(var(--sq) * 0.4);
   z-index: 2;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
   border: 2px solid rgba(0, 0, 0, 0.15);
   user-select: none;
-  transition: transform 0.1s;
-  cursor: pointer;
   touch-action: none;
 }
 .piece:active {
   cursor: grabbing !important;
+}
+
+.pc-frozen {
+  filter: grayscale(50%) brightness(0.7);
+  box-shadow: 0 0 0 2px #555 inset;
+  cursor: not-allowed !important;
+}
+
+.square.sq-pullable .piece,
+.square.sq-pushable .piece {
+  cursor: pointer !important;
 }
 
 .pc-gold {
@@ -245,11 +196,6 @@
 .pc-silver {
   background: radial-gradient(circle at 35% 35%, white, #A8A8A8);
   border-color: #707070;
-}
-.pc-frozen {
-  filter: grayscale(50%) brightness(0.7);
-  box-shadow: 0 0 0 2px #555 inset;
-  cursor: not-allowed !important;
 }
 
 /* ── Winner banner ── */
@@ -278,12 +224,3 @@
   font-weight: bold;
 }
 .winner-banner button:hover { background: #2d2d4e; }
-
-/* ── Rules link (bottom of page) ── */
-.play-rules-link {
-  margin-top: 20px;
-  color: #aaa;
-  font-size: 0.95rem;
-  text-decoration: underline dashed;
-}
-.play-rules-link:hover { color: #FFD700; }

@@ -1,7 +1,12 @@
+// React Components
 import { Link } from 'react-router-dom';
+
+// CSS
+import './Play.css';
+
+// FontAwesome icons
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShareFromSquare } from '@fortawesome/free-solid-svg-icons';
-import './Play.css';
 
 // Game components
 import PlayerInfo from '../components/PlayerInfo/PlayerInfo';
@@ -45,9 +50,7 @@ export default function Play({ online = false }) {
         fontFamily: 'Georgia, serif',
       }}>
         <div className="play-header" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '20px',
+          gridRow: 1,
           marginBottom: '12px',
           alignSelf: 'end',
           width: '100%',
@@ -55,7 +58,6 @@ export default function Play({ online = false }) {
         }}>
           <h1 className="play-title"
             style={{
-              flex: 1,
               textAlign: 'center',
               color: '#FFD700',
               fontSize: '1.8rem',
@@ -68,19 +70,19 @@ export default function Play({ online = false }) {
           </h1>
         </div>
 
+        {/* Explicit row so it stays in the centered `auto` track even with
+            no header element in row 1 */}
         <div className="game-container" style={{
+          gridRow: 2,
           display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'flex-start',
+          alignItems: 'center',
+          justifyContent: 'center',
           gap: '16px',
         }}>
           <main className="game-core" style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 'fit-content',
           }}>
             <PlayerInfo
               g={g}
@@ -155,8 +157,8 @@ export default function Play({ online = false }) {
           </div>
         </div>
 
-        {/* New tab so the in-progress game (held in hook state) isn't lost */}
-        <Link className="play-rules-link" style={{ alignSelf: 'start' }} to="/rules" target="_blank" rel="noopener noreferrer">
+        {/* Link to the rules page */}
+        <Link className="play-rules-link" style={{ gridRow: 3, alignSelf: 'start' }} to="/rules" target="_blank" rel="noopener noreferrer">
           Pieces &amp; Rules <FontAwesomeIcon icon={faShareFromSquare} />
         </Link>
       </div>
