@@ -4,6 +4,20 @@ Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999,
 * Notation: https://arimaa.com/arimaa/learn/notation.html
 * [Board Game Geek ID](https://boardgamegeek.com/boardgame/4616/arimaa): 4616
 
+## 🎯 v1 — Shareable Online Game
+
+> Goal: send a friend a link and play a full timed game. No accounts, ratings, chat or spectating yet.
+
+- [ ]  **Local 2-player hotseat** - retest end-to-end now that push/pull + rule fixes are done
+- [ ]  **Mobile layout** - board responsive on phones
+- [X]  **Piece images** - SVG art instead of emoji ✅ 2026-10-18
+- [ ]  **Game rooms + share link** - server currently has one hardcoded room (gold/silver on separate ports); needs room IDs in the URL
+- [ ]  **Real-time move sync** - working for the single room via `ws`; finish once rooms exist
+- [ ]  **Per-turn clock + flag on timeout**
+- [ ]  **Host the WebSocket server** - GitHub Pages only serves static files, so `server/` needs its own host
+
+*These items also appear in the full agenda below. Check them off in both places.*
+
 ## Agenda
 
 ### Game Rules (Correctness First)
@@ -25,8 +39,8 @@ Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999,
 
 - [X]  **Player indicator** - uncomment and finish the player bar (currently commented out) ✅ 2026-09-27
 - [ ]  **Captured pieces tray** - show pieces lost to traps
-- [ ]  **Drag-and-drop** - click-to-move works but drag is the standard for board games
-- [ ]  **Piece images** - replace emoji with proper SVG/PNG art (emoji render inconsistently across OSes)
+- [X]  **Drag-and-drop** - click-to-move works but drag is the standard for board games ✅ 2026-10-18
+- [X]  **Piece images** - replace emoji with proper SVG/PNG art (emoji render inconsistently across OSes) ✅ 2026-10-18
 - [ ]  **Move animations** - smooth piece sliding between squares
 - [ ]  **Sound effects** - move, capture, win
 - [ ]  **Confetti** - on a win
@@ -41,7 +55,7 @@ Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999,
 
 ### Online Multiplayer (Lichess-comparable)
 
-- [ ]  **Backend server** - Node.js + WebSocket (e.g., Socket.io) or BaaS like Supabase/Firebase
+- [ ]  **Backend server** - Node.js + WebSocket (e.g., Socket.io) or BaaS like Supabase/Firebase *(started: Express + `ws` in `server/`, single room)*
 - [ ]  **Game rooms** - create a game, share a link, second player joins
 - [ ]  **Real-time move sync** - broadcast moves to both clients
 - [ ]  **Reconnect handling** - rejoin a game if you disconnect
@@ -74,7 +88,7 @@ Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999,
 
 ### Infrastructure & Deployment
 
-- [ ]  **Hosting** - hosted on SiteGround
+- [ ]  **Hosting** - hosted on SiteGround *(frontend currently on GitHub Pages: https://trekkateer.github.io/arima)*
 - [ ]  **Database** - PostgreSQL
 - [ ]  **Environment config** - `.env` files for API keys, DB URLs
 - [ ]  **CI/CD pipeline** - auto-deploy on push to main
