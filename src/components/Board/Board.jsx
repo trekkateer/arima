@@ -23,7 +23,7 @@ export default function Board({
   setSetupSelected,
 }) {
   const { dragging, dragPos, onPiecePointerDown, onSquareClick } = useDragAndDrop({
-    board, currPlayer, frozen, setupPhase, winner, pushPhase, stepsExhausted, locked,
+    board, player: currPlayer, frozen, setupPhase, winner, pushPhase, stepsExhausted, locked,
     setSelected, setValidMoves, setSetupSelected, onSquareClick: onMove,
   });
 
@@ -185,7 +185,7 @@ export default function Board({
           filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6))',
         }}>
           <div className={`piece pc-${board[dragging.row][dragging.col].color}`}>
-            <img src={`${process.env.PUBLIC_URL}/img/pieces/cg.svg`} alt="" draggable={false} />
+            <img src={`${process.env.PUBLIC_URL}/img/pieces/${PIECE_IMAGES[board[dragging.row][dragging.col].colorID][board[dragging.row][dragging.col].type]}.svg`} alt="" draggable={false} />
           </div>
         </div>
       )}
