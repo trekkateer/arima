@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/arima/static/css/main.da8a4daf.css",
-    "main.js": "/arima/static/js/main.aebec4bf.js",
+    "main.css": "/arima/static/css/main.d4b9897c.css",
+    "main.js": "/arima/static/js/main.7a1d346b.js",
     "index.html": "/arima/index.html",
-    "main.da8a4daf.css.map": "/arima/static/css/main.da8a4daf.css.map",
-    "main.aebec4bf.js.map": "/arima/static/js/main.aebec4bf.js.map"
+    "main.d4b9897c.css.map": "/arima/static/css/main.d4b9897c.css.map",
+    "main.7a1d346b.js.map": "/arima/static/js/main.7a1d346b.js.map"
   },
   "entrypoints": [
-    "static/css/main.da8a4daf.css",
-    "static/js/main.aebec4bf.js"
+    "static/css/main.d4b9897c.css",
+    "static/js/main.7a1d346b.js"
   ]
 }
