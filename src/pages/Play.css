@@ -122,14 +122,6 @@
   background: black;
   border: 2px solid red;
 }
-.square.sq-trap::after {
-  content: '✕';
-  position: absolute;
-  font-size: calc(var(--sq) * 0.65);
-  color: red;
-  pointer-events: none;
-  line-height: 1;
-}
 
 /* Custom highlight states that a square can have */
 .sq-selected, .sq-pushable, .sq-push-active, .sq-pullable, .sq-setup-selected {

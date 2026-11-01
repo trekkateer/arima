@@ -1,14 +1,14 @@
 Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999, Arima is a two-player strategy board game played on an 8×8 grid. It is designed to be inherently difficult for computers to crack. Each turn, a player moves their pieces up to four steps. Pieces can freeze weaker enemies, fall into traps, push and pull opponents, and win by advancing a Rabbit to the far side of the board or capturing all of the opponent's Rabbits.
 
-* About: https://arimaa.com/arimaa/
-* Notation: https://arimaa.com/arimaa/learn/notation.html
+* About: [arimaa.com/arimaa](https://arimaa.com/arimaa/)
+* Notation: [arimaa.com/arimaa/learn/notation.html](https://arimaa.com/arimaa/learn/notation.html)
 * [Board Game Geek ID](https://boardgamegeek.com/boardgame/4616/arimaa): 4616
 
 ## 🎯 v1 — Shareable Online Game
 
 > Goal: send a friend a link and play a full timed game. No accounts, ratings, chat or spectating yet.
 
-- [ ]  **Local 2-player hotseat** - retest end-to-end now that push/pull + rule fixes are done
+- [X]  **Local 2-player hotseat** - retest end-to-end now that push/pull + rule fixes are done
 - [ ]  **Mobile layout** - board responsive on phones
 - [X]  **Piece images** - SVG art instead of emoji ✅ 2026-10-18
 - [ ]  **Game rooms + share link** - server currently has one hardcoded room (gold/silver on separate ports); needs room IDs in the URL
@@ -49,7 +49,7 @@ Invented by [Omar Syed](https://arimaa.com/arimaa/about/designers.html) in 1999,
 
 ### Single-Player / Offline
 
-- [ ]  **Local 2-player hotseat** - fully working (push/pull + rule fixes needed first)
+- [X]  **Local 2-player hotseat** - fully working (push/pull + rule fixes needed first)
 
 - No bots though - this is against the Arimaa code
 
