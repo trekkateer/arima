@@ -1,5 +1,5 @@
 // React Components
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // CSS
 import './Play.css';
@@ -20,6 +20,8 @@ export default function Play({ online = false }) {
   // Core turn engine (board, moves, undo/redo, setup). Drag-and-drop and move-log
   // formatting live in Board and MoveHistoryPanel, since only those need them.
   const g = useGameState({ online });
+  // Router-aware navigation so the basename (/arima on GitHub Pages) is kept
+  const navigate = useNavigate();
 
   // Online status line under the title: connection, our seat, and whose move it is
   let onlineStatus = null;
@@ -64,7 +66,7 @@ export default function Play({ online = false }) {
               letterSpacing: '3px',
               cursor: 'pointer',
             }}
-            onClick={() => window.location.href = '/'}
+            onClick={() => navigate('/')}
           >
             Arima
           </h1>

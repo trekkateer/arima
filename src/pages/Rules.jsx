@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { PIECE_NAMES, PIECE_EMOJI } from '../game/arima';
+import { PIECE_NAMES } from '../game/arima.js';
 import './Rules.css';
 
 // Static rules reference page.
@@ -56,7 +56,6 @@ export default function Rules() {
                 gap: '6px',
                 fontSize: '0.9rem',
               }}>
-                <span className="legend-emoji" style={{ fontSize: '20px' }}>{PIECE_EMOJI[type]}</span>
                 <span className="legend-letter" style={{ fontWeight: 'bold', color: '#FFD700', width: '14px' }}>{type}</span>
                 <span>{name}</span>
               </div>
@@ -84,7 +83,7 @@ export default function Rules() {
           </ul>
         </div>
 
-        <Link to="/play" className="rules-play-btn">Play</Link>
+        <Link to="/" className="rules-play-btn">Play</Link>
       </div>
     </>
   );

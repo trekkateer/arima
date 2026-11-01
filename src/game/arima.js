@@ -1,6 +1,5 @@
 export const STRENGTH    = { E: 6, M: 5, H: 4, D: 3, C: 2, R: 1 };
 export const PIECE_NAMES = { E: 'Elephant', M: 'Camel', H: 'Horse', D: 'Dog', C: 'Cat', R: 'Rabbit' };
-export const PIECE_EMOJI = { E: '🐘', M: '🐪', H: '🐴', D: '🐕', C: '🐈', R: '🐇' };
 
 export const TRAP_COORDS = [[2,2],[2,5],[5,2],[5,5]];
 export const TRAP_SET = new Set(TRAP_COORDS.map(([row,col]) => `${row},${col}`));
@@ -12,8 +11,8 @@ export function createInitialBoard() {
   const board = Array.from({ length: 8 }, () => Array(8).fill(null));
   ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[0][c] = { id: piece, type: piece[0], colorID: 'Ag', color: 'silver' }; });
   for (let i = 0; i < 8; i++) board[1][i] = { id: 'R'+i, type: 'R', colorID: 'Ag', color: 'silver' };
-  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[6][c] = { id: piece, type: piece[0], colorID: 'Au', color: 'gold' }; });
-  for (let i = 0; i < 8; i++) board[7][i] = { id: 'R'+i, type: 'R', colorID: 'Au', color: 'gold' };
+  for (let i = 0; i < 8; i++) board[6][i] = { id: 'R'+i, type: 'R', colorID: 'Au', color: 'gold' };
+  ['C1','D1','H1','E1','M1','H2','D2','C2'].forEach((piece, c) => { board[7][c] = { id: piece, type: piece[0], colorID: 'Au', color: 'gold' }; });
   return board;
 }
 
