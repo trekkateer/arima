@@ -39,7 +39,7 @@ export default function GameControls({
           <button className="blue-btn" onClick={onEndTurn} disabled={!canEndTurn || !!winner}
             title={currMove > 0 && !canEndTurn ? 'Your turn must change the position' : undefined}
           >
-            End Turn
+            Send Moves
           </button>
           <button className="red-btn" onClick={onReset}>
             New Game

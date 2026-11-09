@@ -167,7 +167,7 @@ export function applySetup(board, colorID, rows) {
     return { error: 'Setup must use exactly 1 E, 1 M, 2 H, 2 D, 2 C and 8 R' };
   }
 
-  // Fresh ids per type (R0..R7, H1/H2, ...) mirroring createInitialBoard
+  // Fresh ids per type (R0..R7, H1/H2, ...) mirroring initBoard
   const next = board.map(r => [...r]);
   const seen = {};
   const color = colorID === 'Au' ? 'gold' : 'silver';

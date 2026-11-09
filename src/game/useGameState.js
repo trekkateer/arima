@@ -3,10 +3,11 @@ import { toast } from '../components/Toast/Toast';
 
 // Imports components
 import {
-  createInitialBoard, computeFrozen, getValidMoves,
+  initBoard, computeFrozen, getValidMoves,
   getPushableEnemies, getPushDests, getPullables,
   applyTraps, serializePosition
 } from './arima';
+import { INIT_POS } from './arima';
 import { judgeTurnEnd } from './turn';
 import { useServer } from './useServer';
 import { HOME_ROWS, stepNote, capNote, findCaptures } from './notation';
@@ -27,7 +28,7 @@ function cloneBoard(b) {
 // server, and the board is replaced by whatever `state` it broadcasts back.
 export function useGameState({ online = false } = {}) {
   // State variables
-  const [board, setBoard] = useState(createInitialBoard);
+  const [board, setBoard] = useState(initBoard);
   const [selected, setSelected] = useState(null);
   const [validMoves, setValidMoves] = useState(new Set());
   const [currMove, setCurrMove] = useState(0);
@@ -47,7 +48,7 @@ export function useGameState({ online = false } = {}) {
   // Move history and position log
   const [moveHistory, setMoveHistory] = useState([board.map(r => r.map(p => p ? { ...p } : null))]);
   const [halfPushSteps, setHalfPushSteps] = useState(new Set());
-  const [positionLog, setPositionLog] = useState(() => [serializePosition(createInitialBoard(), 'Au')]);
+  const [positionLog, setPositionLog] = useState(() => [serializePosition(initBoard(), 'Au')]);
 
   // Completed turns: each entry is { player, steps: string[] }. Gold always goes first.
   const [gameLog, setGameLog] = useState([]);
@@ -439,7 +440,7 @@ export function useGameState({ online = false } = {}) {
       server.send({ type: 'reset' });
       return;
     }
-    const initialBoard = createInitialBoard();
+    const initialBoard = initBoard(INIT_POS);
     setBoard(initialBoard);
     setSelected(null);
     setValidMoves(new Set());

@@ -36,7 +36,7 @@ All game rules are **pure functions** with no React state — import and call fr
 
 | Export                                                            | Purpose                                                                                          |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `createInitialBoard()`                                            | Returns 8×8 board array                                                                         |
+| `initBoard()`                                            | Returns 8×8 board array                                                                         |
 | `computeFrozen(board)`                                            | Returns`Set<"row,col">` of frozen pieces                                                         |
 | `getValidMoves(board, row, col, player, frozen)`                  | Returns`Set<"row,col">` of legal destinations                                                    |
 | `getPushableEnemies(board, row, col, frozen)`                     | Weaker adjacent enemies the selected piece can push                                              |

@@ -1,4 +1,5 @@
-import { createInitialBoard, serializePosition } from '../src/game/arima.js';
+import INIT_POS from '../src/game/arima.js';
+import { initBoard, serializePosition } from '../src/game/arima.js';
 import { applyTurn, applySetup, judgeTurnEnd } from '../src/game/turn.js';
 
 // One authoritative game held in memory. Every mutation is validated with the same
@@ -10,7 +11,7 @@ export class Game {
   }
 
   reset() {
-    this.board = createInitialBoard();
+    this.board = initBoard(INIT_POS);
     this.setupPhase = 'Au';   // 'Au' | 'Ag' while that side arranges pieces, null once play starts
     this.currPlayer = 'Au';
     this.winner = null;
