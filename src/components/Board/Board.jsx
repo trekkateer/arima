@@ -50,7 +50,6 @@ export default function Board({
       position: 'relative',
       display: 'inline-flex',
       flexDirection: 'column',
-      border: '3px solid #3a2600',
       borderRadius: '3px',
       boxShadow: '0 6px 24px rgba(0, 0, 0, 0.6)',
       background: '#2c1a0e',

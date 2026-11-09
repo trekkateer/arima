@@ -19,7 +19,6 @@ export default function Home() {
       setResult(data);
     });
   }, []);
-  //console.log(result[0]?.test_string);
 
   return (
     <div className="home">
